@@ -16,6 +16,7 @@
     logs: [],
     selectedCarId: 'all',
     taskStatusFilter: 'all',
+    taskViewMode: 'table',
     historySearch: '',
     historyCategory: 'all',
     historyPhotoFilter: 'all',
@@ -557,11 +558,18 @@
     appState.cars = Array.isArray(data.cars) ? data.cars : [];
     appState.tasks = Array.isArray(data.tasks) ? data.tasks : [];
     appState.logs = Array.isArray(data.logs) ? data.logs : [];
-    if (
+    if (appState.cars.length === 0) {
+      appState.selectedCarId = 'all';
+    } else if (
+      appState.selectedCarId === 'all' &&
+      appState.cars.length >= 1
+    ) {
+      appState.selectedCarId = appState.cars[0].id;
+    } else if (
       appState.selectedCarId !== 'all' &&
       !appState.cars.some((c) => c.id === appState.selectedCarId)
     ) {
-      appState.selectedCarId = 'all';
+      appState.selectedCarId = appState.cars[0]?.id || 'all';
     }
     saveLocalState({ skipCloudPush, preserveTimestamp });
     renderAll();
@@ -741,81 +749,113 @@
     `;
   }
 
+  const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  function formatShortMonthYear(dateStr) {
+    if (!dateStr) return '';
+    const parts = String(dateStr).split('-').map(Number);
+    if (parts.length < 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) return String(dateStr);
+    const monthName = SHORT_MONTHS[Math.max(0, Math.min(11, parts[1] - 1))];
+    return `${monthName} ${parts[0]}`;
+  }
+
+  function formatIntervalNote(task) {
+    const miles = Number(task.intervalMiles || 0);
+    const months = Number(task.intervalMonths || 0);
+    let monthLabel = '';
+    if (months > 0) {
+      if (months % 12 === 0) {
+        const yrs = months / 12;
+        monthLabel = yrs === 1 ? '1 year' : `${yrs} years`;
+      } else {
+        monthLabel = `${months} mo`;
+      }
+    }
+    if (miles > 0 && months > 0) {
+      return `${formatNumber(miles)} / ${monthLabel}`;
+    }
+    if (miles > 0) {
+      return formatNumber(miles);
+    }
+    if (months > 0) {
+      return monthLabel;
+    }
+    return '—';
+  }
+
   function renderFleetSidebar() {
     const fleetList = document.getElementById('fleet-list');
-    const allActiveClass = appState.selectedCarId === 'all' ? 'active' : '';
+    if (appState.cars.length === 0) {
+      fleetList.innerHTML = '';
+      return;
+    }
 
-    let html = `
-      <div class="card-container" role="listitem">
-        <div class="fleet-item ${allActiveClass}" data-select-car="all" tabindex="0" role="button" aria-pressed="${appState.selectedCarId === 'all'}">
-          <div class="fleet-item-top">
-            <span class="fleet-title">
-              <span class="car-badge-dot" style="background:#38bdf8"></span>
-              All Garage Vehicles (${appState.cars.length})
-            </span>
-          </div>
-          <div class="fleet-meta">
-            <span>Combined schedules &amp; service history</span>
-          </div>
-        </div>
-      </div>
-    `;
-
+    let html = '';
     for (const car of appState.cars) {
       const isSelected = appState.selectedCarId === car.id;
-      const carTasks = appState.tasks.filter((t) => t.carId === car.id);
-      const carLogs = appState.logs.filter((l) => l.carId === car.id);
-      let overdue = 0;
-      for (const t of carTasks) {
-        if (evaluateTaskStatus(t, car).status === 'overdue') overdue++;
-      }
-
       html += `
-        <div class="card-container" role="listitem">
-          <div class="fleet-item card ${isSelected ? 'active' : ''}" data-select-car="${escapeHtml(car.id)}" tabindex="0" role="button" aria-pressed="${isSelected}">
-            <div>
-              <div class="fleet-item-top">
-                <span class="fleet-title">
-                  <span class="car-badge-dot" style="background:${escapeHtml(car.colorAccent || '#0ea5e9')}"></span>
-                  ${escapeHtml(car.year)} ${escapeHtml(car.make)} ${escapeHtml(car.model)}
-                </span>
-              </div>
-              <div class="fleet-meta">
-                ${car.nickname ? `<span>“${escapeHtml(car.nickname)}”</span>` : ''}
-                ${car.licensePlate ? `<span>Plate: ${escapeHtml(car.licensePlate)}</span>` : ''}
-                <span>${carTasks.length} schedules</span>
-                <span>${carLogs.length} logs</span>
-                ${overdue > 0 ? `<span style="color:#fda4af;font-weight:700">${overdue} overdue</span>` : ''}
-              </div>
-            </div>
-            <span class="fleet-mileage">${formatNumber(car.currentMileage)} mi</span>
-          </div>
-        </div>
+        <button
+          type="button"
+          class="fleet-pill ${isSelected ? 'active' : ''}"
+          data-select-car="${escapeHtml(car.id)}"
+          aria-pressed="${isSelected}"
+        >
+          <span class="car-badge-dot" style="background:${escapeHtml(car.colorAccent || '#0ea5e9')}"></span>
+          <span>${escapeHtml(car.year)} ${escapeHtml(car.make)} ${escapeHtml(car.model)}</span>
+        </button>
+      `;
+    }
+
+    if (appState.cars.length > 1) {
+      const isAll = appState.selectedCarId === 'all';
+      html += `
+        <button
+          type="button"
+          class="fleet-pill ${isAll ? 'active' : ''}"
+          data-select-car="all"
+          aria-pressed="${isAll}"
+        >
+          <span>All (${appState.cars.length})</span>
+        </button>
       `;
     }
 
     fleetList.innerHTML = html;
 
     fleetList.querySelectorAll('[data-select-car]').forEach((el) => {
-      const activate = () => {
+      el.addEventListener('click', () => {
         appState.selectedCarId = el.getAttribute('data-select-car');
         renderAll();
-      };
-      el.addEventListener('click', activate);
-      el.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          activate();
-        }
       });
     });
   }
 
   function renderActiveCarPanel() {
     const panel = document.getElementById('active-car-panel');
+    if (appState.cars.length === 0) {
+      panel.hidden = false;
+      panel.innerHTML = `
+        <div class="note-empty-car">
+          <p style="margin:0;color:var(--text-secondary);">No vehicles in your garage yet.</p>
+          <button type="button" class="btn btn-sm btn-primary" id="btn-empty-add-car">+ Add Vehicle</button>
+        </div>
+      `;
+      document.getElementById('btn-empty-add-car').addEventListener('click', () => openCarDialog());
+      return;
+    }
+
     if (appState.selectedCarId === 'all') {
-      panel.hidden = true;
-      panel.innerHTML = '';
+      panel.hidden = false;
+      panel.innerHTML = `
+        <div class="note-car-sheet">
+          <div class="note-car-title-row">
+            <h2 class="note-car-title">All Garage Vehicles (${appState.cars.length})</h2>
+          </div>
+          <div class="note-car-meta">
+            <div>Viewing combined maintenance schedules &amp; service history</div>
+          </div>
+        </div>
+      `;
       return;
     }
 
@@ -825,40 +865,58 @@
       return;
     }
 
+    const carTasks = appState.tasks.filter((t) => t.carId === car.id);
+    let overdueCount = 0;
+    let dueSoonCount = 0;
+    for (const t of carTasks) {
+      const st = evaluateTaskStatus(t, car).status;
+      if (st === 'overdue') overdueCount++;
+      else if (st === 'due-soon') dueSoonCount++;
+    }
+
     panel.hidden = false;
     panel.innerHTML = `
-      <div class="section-header">
-        <h3 style="margin:0;font-size:1rem;display:flex;align-items:center;gap:0.45rem;">
-          <span class="car-badge-dot" style="background:${escapeHtml(car.colorAccent || '#0ea5e9')}"></span>
-          ${escapeHtml(getCarDisplayName(car))}
-        </h3>
-        <div style="display:flex;gap:0.4rem;">
-          <button type="button" class="btn btn-sm btn-ghost" id="btn-edit-active-car">Edit</button>
-          <button type="button" class="btn btn-sm btn-danger" id="btn-delete-active-car">Delete</button>
+      <div class="note-car-sheet">
+        <div class="note-car-title-row">
+          <h2 class="note-car-title">
+            <span class="car-badge-dot" style="background:${escapeHtml(car.colorAccent || '#0ea5e9')}"></span>
+            ${escapeHtml(getCarDisplayName(car))}
+          </h2>
+          <div class="note-car-actions">
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-edit-active-car">Edit</button>
+          </div>
+        </div>
+
+        <div class="note-car-meta">
+          <div>VIN: <span class="note-mono">${escapeHtml(car.vin || '—')}</span></div>
+          <div>License Plate: <span class="note-mono">${escapeHtml(car.licensePlate || '—')}</span></div>
+        </div>
+
+        <div class="note-odometer-bar">
+          <form id="quick-odometer-form" class="note-odometer-form">
+            <label for="quick-odometer-input">Odometer:</label>
+            <input
+              type="number"
+              id="quick-odometer-input"
+              min="0"
+              max="2000000"
+              value="${Number(car.currentMileage || 0)}"
+              required
+              inputmode="numeric"
+              aria-label="Current odometer mileage"
+            >
+            <span class="note-odometer-unit">mi</span>
+            <button type="submit" class="btn btn-sm btn-secondary note-odo-btn">Update</button>
+          </form>
+          <div class="note-status-summary">
+            <span>${carTasks.length} items</span>
+            ${overdueCount > 0 ? `<span class="note-summary-overdue">• ${overdueCount} due</span>` : '<span class="note-summary-ok">• All on track</span>'}
+          </div>
         </div>
       </div>
-
-      ${car.vin ? `<p style="margin:0.35rem 0 0;font-size:0.8rem;color:var(--text-muted);font-family:monospace;">VIN: ${escapeHtml(car.vin)}</p>` : ''}
-      ${car.notes ? `<p style="margin:0.45rem 0;font-size:0.84rem;color:var(--text-secondary);">${escapeHtml(car.notes)}</p>` : ''}
-
-      <form id="quick-odometer-form" class="odometer-QuickForm">
-        <label for="quick-odometer-input" class="visually-hidden">Update current odometer mileage</label>
-        <input
-          type="number"
-          id="quick-odometer-input"
-          min="0"
-          max="2000000"
-          value="${Number(car.currentMileage || 0)}"
-          required
-          inputmode="numeric"
-          aria-label="Current odometer mileage"
-        >
-        <button type="submit" class="btn btn-sm btn-secondary">Update Miles</button>
-      </form>
     `;
 
     document.getElementById('btn-edit-active-car').addEventListener('click', () => openCarDialog(car));
-    document.getElementById('btn-delete-active-car').addEventListener('click', () => handleDeleteCar(car.id));
     document.getElementById('quick-odometer-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const newMileage = Math.max(0, Math.round(Number(document.getElementById('quick-odometer-input').value) || 0));
@@ -887,102 +945,193 @@
       .filter((item) => {
         if (appState.taskStatusFilter === 'all') return true;
         return item.evaluation.status === appState.taskStatusFilter;
-      })
-      .sort((a, b) => b.evaluation.urgencyScore - a.evaluation.urgencyScore);
+      });
 
     if (enriched.length === 0) {
+      container.className = 'tasks-container';
       container.innerHTML = `
-        <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text-muted);background:var(--bg-elevated);border-radius:var(--radius-md);">
-          No recurring maintenance schedules match the current filter. Click <strong>+ New Recurring Task</strong> to add one.
+        <div style="text-align:center;padding:1.25rem;color:var(--text-muted);background:var(--bg-elevated);border-radius:var(--radius-md);font-size:0.88rem;">
+          No maintenance items match the current filter. Tap <strong>+ Item</strong> to add one.
         </div>
       `;
       return;
     }
 
-    container.innerHTML = enriched
-      .map(({ task, car, evaluation }) => {
-        const intervalParts = [];
-        if (task.intervalMiles > 0) intervalParts.push(`Every ${formatNumber(task.intervalMiles)} mi`);
-        if (task.intervalMonths > 0) intervalParts.push(`Every ${task.intervalMonths} mo`);
-        const intervalSummary = intervalParts.join(' or ') || 'Custom schedule';
+    if (appState.taskViewMode === 'table') {
+      container.className = 'tasks-container';
+      const rowsHtml = enriched
+        .map(({ task, car, evaluation }) => {
+          const hasMileage = task.lastCompletedMileage != null;
+          const hasDate = Boolean(task.lastCompletedDate);
+          let completedPrimary = 'n/a';
+          let completedDateTag = '';
+          if (hasMileage && hasDate) {
+            completedPrimary = formatNumber(task.lastCompletedMileage);
+            completedDateTag = formatShortMonthYear(task.lastCompletedDate);
+          } else if (hasMileage) {
+            completedPrimary = formatNumber(task.lastCompletedMileage);
+          } else if (hasDate) {
+            completedPrimary = formatShortMonthYear(task.lastCompletedDate);
+          }
 
-        let milesText = 'N/A';
-        if (evaluation.nextDueMileage != null) {
-          const diff = evaluation.milesRemaining;
-          milesText =
-            diff <= 0
-              ? `${formatNumber(Math.abs(diff))} mi overdue (Due @ ${formatNumber(evaluation.nextDueMileage)} mi)`
-              : `In ${formatNumber(diff)} mi (@ ${formatNumber(evaluation.nextDueMileage)} mi)`;
-        }
+          let dueSubHtml = '';
+          if (evaluation.nextDueMileage != null && hasMileage) {
+            const rem = evaluation.milesRemaining;
+            const dueClass = evaluation.status;
+            const dueLabel =
+              rem <= 0
+                ? `Due ${formatNumber(evaluation.nextDueMileage)} (${formatNumber(Math.abs(rem))} over)`
+                : `Due ${formatNumber(evaluation.nextDueMileage)}`;
+            dueSubHtml = `<div class="note-due-sub ${dueClass}">${escapeHtml(dueLabel)}</div>`;
+          } else if (evaluation.status === 'overdue' && evaluation.nextDueMileage != null) {
+            dueSubHtml = `<div class="note-due-sub overdue">Due ${formatNumber(evaluation.nextDueMileage)}</div>`;
+          }
 
-        let dateText = 'N/A';
-        if (evaluation.nextDueDate != null) {
-          const days = evaluation.daysRemaining;
-          dateText =
-            days < 0
-              ? `${Math.abs(days)}d overdue (${evaluation.nextDueDate})`
-              : `In ${days}d (${evaluation.nextDueDate})`;
-        }
+          const showCarLabel = appState.selectedCarId === 'all' && appState.cars.length > 1 && car;
 
-        const lastDoneInfo =
-          task.lastCompletedDate || task.lastCompletedMileage != null
-            ? `${task.lastCompletedDate || '—'} @ ${task.lastCompletedMileage != null ? formatNumber(task.lastCompletedMileage) + ' mi' : '—'}`
-            : 'Not yet logged';
+          return `
+            <tr class="note-row status-${evaluation.status}">
+              <th scope="row" class="note-cell-item">
+                <button type="button" class="note-cell-edit-btn" data-edit-task="${escapeHtml(task.id)}">
+                  <span class="note-item-main">
+                    <span class="status-dot ${evaluation.status}" title="${escapeHtml(evaluation.statusLabel)}"></span>
+                    <span class="note-item-title">${escapeHtml(task.title)}</span>
+                  </span>
+                  ${task.notes ? `<span class="note-item-sub">${escapeHtml(task.notes)}</span>` : ''}
+                  ${showCarLabel ? `<span class="note-item-sub">${escapeHtml(car.year)} ${escapeHtml(car.make)} ${escapeHtml(car.model)}</span>` : ''}
+                </button>
+              </th>
+              <td class="note-cell-completed">
+                <button type="button" class="note-cell-edit-btn" data-edit-task="${escapeHtml(task.id)}">
+                  <span class="note-completed-val ${!hasMileage && !hasDate ? 'is-na' : ''}">
+                    ${escapeHtml(completedPrimary)}${completedDateTag ? ` <span class="note-completed-date">${escapeHtml(completedDateTag)}</span>` : ''}
+                  </span>
+                  ${dueSubHtml}
+                </button>
+              </td>
+              <td class="note-cell-interval">
+                <div class="note-interval-wrap">
+                  <button type="button" class="note-cell-edit-btn note-interval-text" data-edit-task="${escapeHtml(task.id)}">
+                    ${escapeHtml(formatIntervalNote(task))}
+                  </button>
+                  <button
+                    type="button"
+                    class="note-log-btn"
+                    data-complete-task="${escapeHtml(task.id)}"
+                    title="Log completed ${escapeHtml(task.title)}"
+                    aria-label="Log completed ${escapeHtml(task.title)}"
+                  >✓</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
 
-        return `
-          <article class="task-card status-${evaluation.status}">
-            <div>
-              <div class="task-header">
-                <div>
-                  <h3 class="task-title">${escapeHtml(task.title)}</h3>
-                  <div class="task-car-tag">
-                    <span class="car-badge-dot" style="background:${escapeHtml(car?.colorAccent || '#0ea5e9')}"></span>
-                    <span>${escapeHtml(car ? `${car.year} ${car.make} ${car.model}` : 'Vehicle')}</span>
-                    <span>• ${escapeHtml(task.category || 'General')}</span>
+      container.innerHTML = `
+        <div tabindex="0" role="region" aria-labelledby="recurring-heading" class="note-table-wrapper">
+          <table class="note-maint-table">
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Work completed at</th>
+                <th scope="col">Recommended interval</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else {
+      container.className = 'tasks-grid';
+      const sortedForCards = [...enriched].sort((a, b) => b.evaluation.urgencyScore - a.evaluation.urgencyScore);
+      container.innerHTML = sortedForCards
+        .map(({ task, car, evaluation }) => {
+          const intervalParts = [];
+          if (task.intervalMiles > 0) intervalParts.push(`Every ${formatNumber(task.intervalMiles)} mi`);
+          if (task.intervalMonths > 0) intervalParts.push(`Every ${task.intervalMonths} mo`);
+          const intervalSummary = intervalParts.join(' or ') || 'Custom schedule';
+
+          let milesText = 'n/a';
+          if (evaluation.nextDueMileage != null) {
+            const diff = evaluation.milesRemaining;
+            milesText =
+              diff <= 0
+                ? `${formatNumber(Math.abs(diff))} mi overdue (Due @ ${formatNumber(evaluation.nextDueMileage)} mi)`
+                : `In ${formatNumber(diff)} mi (@ ${formatNumber(evaluation.nextDueMileage)} mi)`;
+          }
+
+          let dateText = 'n/a';
+          if (evaluation.nextDueDate != null) {
+            const days = evaluation.daysRemaining;
+            dateText =
+              days < 0
+                ? `${Math.abs(days)}d overdue (${evaluation.nextDueDate})`
+                : `In ${days}d (${evaluation.nextDueDate})`;
+          }
+
+          const lastDoneInfo =
+            task.lastCompletedDate || task.lastCompletedMileage != null
+              ? `${task.lastCompletedMileage != null ? formatNumber(task.lastCompletedMileage) + ' mi' : ''}${task.lastCompletedDate ? ' ' + formatShortMonthYear(task.lastCompletedDate) : ''}`.trim()
+              : 'n/a';
+
+          return `
+            <article class="task-card status-${evaluation.status}">
+              <div>
+                <div class="task-header">
+                  <div>
+                    <h3 class="task-title">${escapeHtml(task.title)}</h3>
+                    <div class="task-car-tag">
+                      <span class="car-badge-dot" style="background:${escapeHtml(car?.colorAccent || '#0ea5e9')}"></span>
+                      <span>${escapeHtml(car ? `${car.year} ${car.make} ${car.model}` : 'Vehicle')}</span>
+                      <span>• ${escapeHtml(task.category || 'General')}</span>
+                    </div>
+                  </div>
+                  <span class="status-badge ${evaluation.status}">${escapeHtml(evaluation.statusLabel)}</span>
+                </div>
+
+                <div class="task-metrics" style="margin-block-start:0.8rem;">
+                  <div class="metric-item">
+                    <span>Next Mileage Due</span>
+                    <strong>${escapeHtml(milesText)}</strong>
+                  </div>
+                  <div class="metric-item">
+                    <span>Next Date Due</span>
+                    <strong>${escapeHtml(dateText)}</strong>
+                  </div>
+                  <div class="metric-item">
+                    <span>Interval Rule</span>
+                    <strong>${escapeHtml(intervalSummary)}</strong>
+                  </div>
+                  <div class="metric-item">
+                    <span>Work Completed At</span>
+                    <strong>${escapeHtml(lastDoneInfo)}</strong>
                   </div>
                 </div>
-                <span class="status-badge ${evaluation.status}">${escapeHtml(evaluation.statusLabel)}</span>
+
+                <div class="progress-track" style="margin-block-start:0.75rem;" aria-hidden="true">
+                  <div class="progress-fill ${evaluation.status}" style="inline-size:${Math.min(100, Math.max(6, evaluation.overallProgressPct))}%"></div>
+                </div>
+
+                ${task.notes ? `<p class="task-notes" style="margin-block-start:0.65rem;">${escapeHtml(task.notes)}</p>` : ''}
               </div>
 
-              <div class="task-metrics" style="margin-block-start:0.8rem;">
-                <div class="metric-item">
-                  <span>Next Mileage Due</span>
-                  <strong>${escapeHtml(milesText)}</strong>
+              <div class="task-footer">
+                <div style="display:flex;gap:0.4rem;">
+                  <button type="button" class="btn btn-sm btn-ghost" data-edit-task="${escapeHtml(task.id)}">Edit</button>
+                  <button type="button" class="btn btn-sm btn-ghost" data-delete-task="${escapeHtml(task.id)}">Delete</button>
                 </div>
-                <div class="metric-item">
-                  <span>Next Date Due</span>
-                  <strong>${escapeHtml(dateText)}</strong>
-                </div>
-                <div class="metric-item">
-                  <span>Interval Rule</span>
-                  <strong>${escapeHtml(intervalSummary)}</strong>
-                </div>
-                <div class="metric-item">
-                  <span>Last Completed</span>
-                  <strong>${escapeHtml(lastDoneInfo)}</strong>
-                </div>
+                <button type="button" class="btn btn-sm btn-primary" data-complete-task="${escapeHtml(task.id)}">
+                  ✓ Mark Complete
+                </button>
               </div>
-
-              <div class="progress-track" style="margin-block-start:0.75rem;" aria-hidden="true">
-                <div class="progress-fill ${evaluation.status}" style="inline-size:${Math.min(100, Math.max(6, evaluation.overallProgressPct))}%"></div>
-              </div>
-
-              ${task.notes ? `<p class="task-notes" style="margin-block-start:0.65rem;">${escapeHtml(task.notes)}</p>` : ''}
-            </div>
-
-            <div class="task-footer">
-              <div style="display:flex;gap:0.4rem;">
-                <button type="button" class="btn btn-sm btn-ghost" data-edit-task="${escapeHtml(task.id)}">Edit</button>
-                <button type="button" class="btn btn-sm btn-ghost" data-delete-task="${escapeHtml(task.id)}">Delete</button>
-              </div>
-              <button type="button" class="btn btn-sm btn-primary" data-complete-task="${escapeHtml(task.id)}">
-                ✓ Mark Complete
-              </button>
-            </div>
-          </article>
-        `;
-      })
-      .join('');
+            </article>
+          `;
+        })
+        .join('');
+    }
 
     container.querySelectorAll('[data-complete-task]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -1158,6 +1307,17 @@
     document.getElementById('car-vin').value = carToEdit ? carToEdit.vin || '' : '';
     document.getElementById('car-notes').value = carToEdit ? carToEdit.notes || '' : '';
 
+    const deleteCarBtn = document.getElementById('btn-modal-delete-car');
+    if (deleteCarBtn) {
+      deleteCarBtn.hidden = !carToEdit;
+      deleteCarBtn.onclick = carToEdit
+        ? async () => {
+            await handleDeleteCar(carToEdit.id);
+            dialog.close();
+          }
+        : null;
+    }
+
     dialog.showModal();
   }
 
@@ -1188,22 +1348,35 @@
     const selectedCar = getCarById(defaultCarId);
 
     document.getElementById('task-dialog-title').textContent = taskToEdit
-      ? `Edit Recurring Task: ${taskToEdit.title}`
-      : 'Create Recurring Maintenance Task';
+      ? `Edit Maintenance Item: ${taskToEdit.title}`
+      : 'Add Maintenance Item';
 
     document.getElementById('task-id').value = taskToEdit ? taskToEdit.id : '';
     document.getElementById('task-title').value = taskToEdit ? taskToEdit.title : '';
     document.getElementById('task-category').value = taskToEdit ? taskToEdit.category || 'Engine' : 'Engine';
     document.getElementById('task-interval-miles').value =
-      taskToEdit != null ? taskToEdit.intervalMiles : 5000;
+      taskToEdit != null ? taskToEdit.intervalMiles : 6000;
     document.getElementById('task-interval-months').value =
-      taskToEdit != null ? taskToEdit.intervalMonths : 6;
-    document.getElementById('task-last-date').value = taskToEdit?.lastCompletedDate || new Date().toISOString().slice(0, 10);
+      taskToEdit != null ? taskToEdit.intervalMonths : 0;
+    document.getElementById('task-last-date').value = taskToEdit ? taskToEdit.lastCompletedDate || '' : '';
     document.getElementById('task-last-mileage').value =
-      taskToEdit?.lastCompletedMileage != null
-        ? taskToEdit.lastCompletedMileage
-        : selectedCar?.currentMileage || 0;
+      taskToEdit != null
+        ? taskToEdit.lastCompletedMileage != null
+          ? taskToEdit.lastCompletedMileage
+          : ''
+        : selectedCar?.currentMileage ?? '';
     document.getElementById('task-notes').value = taskToEdit ? taskToEdit.notes || '' : '';
+
+    const deleteTaskBtn = document.getElementById('btn-modal-delete-task');
+    if (deleteTaskBtn) {
+      deleteTaskBtn.hidden = !taskToEdit;
+      deleteTaskBtn.onclick = taskToEdit
+        ? async () => {
+            await handleDeleteTask(taskToEdit.id);
+            dialog.close();
+          }
+        : null;
+    }
 
     dialog.showModal();
   }
@@ -1644,6 +1817,16 @@
       });
     });
 
+    // Task view mode toggle pills (Table vs Cards)
+    document.querySelectorAll('[data-task-view]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-task-view]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        appState.taskViewMode = btn.getAttribute('data-task-view');
+        renderTasksGrid();
+      });
+    });
+
     // History search & filters
     const filterForm = document.getElementById('history-filter-form');
     filterForm.addEventListener('submit', (e) => e.preventDefault());
@@ -1800,13 +1983,19 @@
         const id = payload.id || 'task-' + Math.random().toString(36).slice(2, 10);
         const existingIdx = appState.tasks.findIndex((t) => t.id === id);
         if (existingIdx >= 0) {
-          appState.tasks[existingIdx] = { ...appState.tasks[existingIdx], ...payload, id };
+          appState.tasks[existingIdx] = {
+            ...appState.tasks[existingIdx],
+            ...payload,
+            baselineDate: payload.lastCompletedDate,
+            baselineMileage: payload.lastCompletedMileage,
+            id
+          };
         } else {
           appState.tasks.push({
             ...payload,
             id,
-            baselineDate: payload.lastCompletedDate || new Date().toISOString().slice(0, 10),
-            baselineMileage: payload.lastCompletedMileage || 0,
+            baselineDate: payload.lastCompletedDate,
+            baselineMileage: payload.lastCompletedMileage,
             completionCount: 0
           });
         }

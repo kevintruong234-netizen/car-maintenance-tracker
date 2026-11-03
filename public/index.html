@@ -107,8 +107,8 @@
   </header>
 
   <main class="app-main">
-    <!-- Summary KPI Bar -->
-    <section aria-labelledby="garage-summary-heading" class="summary-section">
+    <!-- Summary KPI Bar (kept for accessibility/metrics, rendered as compact status strip) -->
+    <section aria-labelledby="garage-summary-heading" class="summary-section" hidden>
       <h2 id="garage-summary-heading" class="visually-hidden">Garage Overview Metrics</h2>
       <div class="kpi-grid" id="kpi-grid">
         <!-- Populated dynamically -->
@@ -116,68 +116,64 @@
     </section>
 
     <div class="workspace-grid">
-      <!-- Left Column: Fleet / Vehicles Selector & Active Vehicle Profile -->
-      <aside id="fleet-section" aria-labelledby="fleet-heading" class="fleet-sidebar">
-        <div class="section-header">
-          <h2 id="fleet-heading">My Garage Fleet</h2>
-          <button type="button" id="btn-sidebar-add-car" class="btn btn-sm btn-secondary">+ Car</button>
-        </div>
-        <p class="section-helper">Select a vehicle to filter schedules and history, or view all vehicles together.</p>
-
-        <div id="fleet-list" class="fleet-list" role="list">
-          <!-- Vehicle cards populated by app.js -->
+      <!-- Top Vehicle Note Header: Compact switcher pills + Apple-Notes-style VIN / Plate / Odometer block -->
+      <aside id="fleet-section" aria-labelledby="fleet-heading" class="fleet-sidebar note-vehicle-header">
+        <div class="fleet-switcher-bar">
+          <h2 id="fleet-heading" class="visually-hidden">My Garage Fleet</h2>
+          <div id="fleet-list" class="fleet-list" role="list">
+            <!-- Compact vehicle pills populated by app.js -->
+          </div>
+          <button type="button" id="btn-sidebar-add-car" class="pill-btn fleet-add-pill">+ Vehicle</button>
         </div>
 
-        <!-- Active Car Quick Odometer Card -->
+        <!-- Active Vehicle Note Header (Title, VIN, License Plate, Odometer) -->
         <div id="active-car-panel" class="active-car-panel" hidden>
           <!-- Populated when a specific car is selected -->
         </div>
       </aside>
 
-      <!-- Right Column: Recurring Maintenance Tasks & Service History -->
+      <!-- Main Note Body: Compact 3-Column Maintenance Table & Service History -->
       <div class="content-column">
-        <!-- Recurring Maintenance Schedules -->
-        <section id="schedules-section" aria-labelledby="recurring-heading" class="panel-section">
-          <div class="section-header-row">
-            <div>
-              <h2 id="recurring-heading">Recurring Maintenance Schedule</h2>
-              <p class="section-helper">Track interval tasks by mileage and time. Mark any task complete at a specific date and odometer reading.</p>
-            </div>
+        <!-- Recurring Maintenance Schedule (Apple-Notes 3-Column Table by default) -->
+        <section id="schedules-section" aria-labelledby="recurring-heading" class="panel-section note-section">
+          <div class="section-header-row compact-header-row">
+            <h2 id="recurring-heading" class="note-section-title">Maintenance</h2>
             <div class="section-controls">
               <div class="status-filter-pills" role="group" aria-label="Filter tasks by status">
                 <button type="button" class="pill-btn active" data-task-filter="all">All</button>
                 <button type="button" class="pill-btn" data-task-filter="overdue">Overdue</button>
                 <button type="button" class="pill-btn" data-task-filter="due-soon">Due Soon</button>
-                <button type="button" class="pill-btn" data-task-filter="on-track">On Track</button>
+                <button type="button" class="pill-btn" data-task-filter="on-track">OK</button>
               </div>
-              <button type="button" id="btn-section-add-task" class="btn btn-sm btn-primary">+ New Recurring Task</button>
+              <div class="status-filter-pills" role="group" aria-label="Layout view mode">
+                <button type="button" class="pill-btn active" data-task-view="table">Table</button>
+                <button type="button" class="pill-btn" data-task-view="cards">Cards</button>
+              </div>
+              <button type="button" id="btn-section-add-task" class="btn btn-sm btn-secondary">+ Item</button>
             </div>
           </div>
 
-          <div id="tasks-container" class="tasks-grid">
-            <!-- Populated by app.js -->
+          <div id="tasks-container" class="tasks-container">
+            <!-- Populated by app.js as a compact 3-column table or cards -->
           </div>
         </section>
 
         <!-- Maintenance History Log (with Notes & Photos) -->
-        <section id="history-section" aria-labelledby="history-heading" class="panel-section">
-          <div class="section-header-row">
-            <div>
-              <h2 id="history-heading">Car Maintenance History</h2>
-              <p class="section-helper">Complete chronological service log with mileage, dates, mechanic/DIY notes, and attached photos.</p>
-            </div>
-            <button type="button" id="btn-section-log-service" class="btn btn-sm btn-secondary">+ Log Service Entry</button>
+        <section id="history-section" aria-labelledby="history-heading" class="panel-section note-section">
+          <div class="section-header-row compact-header-row">
+            <h2 id="history-heading" class="note-section-title">Service History</h2>
+            <button type="button" id="btn-section-log-service" class="btn btn-sm btn-secondary">+ Log Service</button>
           </div>
 
           <search class="history-search-bar">
             <form id="history-filter-form" class="filter-form" action="/history" method="GET">
               <div class="filter-field">
-                <label for="history-search-input">Search notes, tasks, or shop</label>
+                <label for="history-search-input" class="visually-hidden">Search notes, tasks, or shop</label>
                 <input
                   type="search"
                   id="history-search-input"
                   name="q"
-                  placeholder="e.g., 0W-16, Brembo, rotation, DIY..."
+                  placeholder="Search service history, notes, or shop..."
                   autocorrect="off"
                   autocapitalize="off"
                   spellcheck="false"
@@ -185,8 +181,8 @@
               </div>
 
               <div class="filter-field">
-                <label for="history-category-filter">Category</label>
-                <select id="history-category-filter" name="category">
+                <label for="history-category-filter" class="visually-hidden">Category</label>
+                <select id="history-category-filter" name="category" aria-label="Filter by category">
                   <option value="all">All Categories</option>
                   <option value="Engine">Engine</option>
                   <option value="Tires & Wheels">Tires &amp; Wheels</option>
@@ -201,8 +197,8 @@
               </div>
 
               <div class="filter-field">
-                <label for="history-photo-filter">Attachments</label>
-                <select id="history-photo-filter" name="photos">
+                <label for="history-photo-filter" class="visually-hidden">Attachments</label>
+                <select id="history-photo-filter" name="photos" aria-label="Filter by photo attachments">
                   <option value="all">All Entries</option>
                   <option value="with-photos">With Photos Only</option>
                 </select>
@@ -409,6 +405,7 @@
       </div>
 
       <div class="dialog-actions">
+        <button type="button" id="btn-modal-delete-car" class="btn btn-danger" style="margin-inline-end:auto;" hidden>Delete Vehicle</button>
         <button type="button" class="btn btn-ghost" data-close-dialog="car-dialog">Cancel</button>
         <button type="submit" class="btn btn-primary">Save Vehicle</button>
       </div>
@@ -512,30 +509,31 @@
       </fieldset>
 
       <fieldset class="interval-fieldset">
-        <legend>Last Performed Baseline (Optional)</legend>
+        <legend>Work Completed At (Leave blank for n/a)</legend>
         <div class="form-row-2">
           <div class="field">
-            <label for="task-last-date">Last Completed Date</label>
-            <span id="task-last-date-hint" class="hint">Used to calculate the next due date</span>
-            <input
-              type="date"
-              id="task-last-date"
-              name="lastCompletedDate"
-              aria-describedby="task-last-date-hint"
-            >
-          </div>
-
-          <div class="field">
             <label for="task-last-mileage">Last Completed Mileage</label>
-            <span id="task-last-mileage-hint" class="hint">Used to calculate the next due mileage</span>
+            <span id="task-last-mileage-hint" class="hint">e.g., 103613 (leave blank for n/a)</span>
             <input
               type="number"
               id="task-last-mileage"
               name="lastCompletedMileage"
               min="0"
               max="2000000"
+              placeholder="n/a"
               inputmode="numeric"
               aria-describedby="task-last-mileage-hint"
+            >
+          </div>
+
+          <div class="field">
+            <label for="task-last-date">Last Completed Date (Optional)</label>
+            <span id="task-last-date-hint" class="hint">Optional date (e.g., Dec 2025)</span>
+            <input
+              type="date"
+              id="task-last-date"
+              name="lastCompletedDate"
+              aria-describedby="task-last-date-hint"
             >
           </div>
         </div>
@@ -548,8 +546,9 @@
       </div>
 
       <div class="dialog-actions">
+        <button type="button" id="btn-modal-delete-task" class="btn btn-danger" style="margin-inline-end:auto;" hidden>Delete Item</button>
         <button type="button" class="btn btn-ghost" data-close-dialog="task-dialog">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Recurring Schedule</button>
+        <button type="submit" class="btn btn-primary">Save Schedule</button>
       </div>
     </form>
   </dialog>

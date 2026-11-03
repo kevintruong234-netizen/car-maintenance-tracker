@@ -118,12 +118,14 @@
 
     const anchorMileage = task.lastCompletedMileage != null
       ? Number(task.lastCompletedMileage)
-      : Number(task.baselineMileage ?? currentMileage);
+      : task.baselineMileage != null
+        ? Number(task.baselineMileage)
+        : 0;
 
-    const anchorDate = task.lastCompletedDate || task.baselineDate || todayStr;
+    const anchorDate = task.lastCompletedDate || task.baselineDate || null;
 
     const nextDueMileage = intervalMiles > 0 ? anchorMileage + intervalMiles : null;
-    const nextDueDate = intervalMonths > 0 ? addMonthsToDateString(anchorDate, intervalMonths) : null;
+    const nextDueDate = intervalMonths > 0 && anchorDate ? addMonthsToDateString(anchorDate, intervalMonths) : null;
 
     const milesRemaining = nextDueMileage != null ? nextDueMileage - currentMileage : null;
     const daysRemaining = nextDueDate != null ? diffDays(nextDueDate, todayStr) : null;
@@ -219,16 +221,16 @@
   function createInitialSeedData() {
     const cars = [
       {
-        id: 'car-rav4-2022',
-        year: 2022,
-        make: 'Toyota',
-        model: 'RAV4 Hybrid XSE',
-        nickname: 'Daily Cruiser',
-        vin: 'JTMEB3FVXND048291',
-        licensePlate: '8XJV492',
-        currentMileage: 34620,
+        id: 'car-371tooqm',
+        year: 2016,
+        make: 'Mazda',
+        model: 'CX-5 2.5',
+        nickname: '',
+        vin: 'JM3KE4DY5G0765059',
+        licensePlate: '9RCW065',
+        currentMileage: 107696,
         colorAccent: '#0ea5e9',
-        notes: 'Uses 0W-16 synthetic oil (4.8 qt with filter). Hybrid battery cooling filter under rear passenger seat.'
+        notes: '0W-20 full synthetic oil. Tire rotation: Rear forward, front cross (lug torque 108 ft-lbs).'
       },
       {
         id: 'car-miata-2018',
@@ -246,46 +248,172 @@
 
     const tasks = [
       {
-        id: 'task-rav4-oil',
-        carId: 'car-rav4-2022',
-        title: 'Engine Oil & Filter Change',
+        id: 'task-18tyc2gm',
+        carId: 'car-371tooqm',
+        title: 'Engine Oil/filter',
         category: 'Engine',
-        intervalMiles: 5000,
-        intervalMonths: 6,
-        lastCompletedDate: '2026-05-14',
-        lastCompletedMileage: 29850,
-        baselineDate: '2026-05-14',
-        baselineMileage: 29850,
-        notes: 'Toyota Genuine 0W-16 Full Synthetic + OEM filter 90915-YZZN1',
-        completionCount: 6
+        intervalMiles: 6000,
+        intervalMonths: 0,
+        lastCompletedDate: '2026-07-03',
+        lastCompletedMileage: 103613,
+        baselineDate: '2026-07-03',
+        baselineMileage: 103613,
+        notes: 'Full synthetic 0W-20 oil and OEM oil filter + crush washer.',
+        completionCount: 1
       },
       {
-        id: 'task-rav4-tires',
-        carId: 'car-rav4-2022',
-        title: 'Tire Rotation & Balance',
+        id: 'task-cx5-fuel-cleaner',
+        carId: 'car-371tooqm',
+        title: 'Fuel Cleaner',
+        category: 'Engine',
+        intervalMiles: 6000,
+        intervalMonths: 0,
+        lastCompletedDate: '2026-07-03',
+        lastCompletedMileage: 103613,
+        baselineDate: '2026-07-03',
+        baselineMileage: 103613,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-is5pxrz7',
+        carId: 'car-371tooqm',
+        title: 'Tire Rotation',
         category: 'Tires & Wheels',
-        intervalMiles: 5000,
-        intervalMonths: 6,
-        lastCompletedDate: '2026-08-10',
-        lastCompletedMileage: 32100,
-        baselineDate: '2026-08-10',
-        baselineMileage: 32100,
-        notes: 'Set cold tire pressure to 35 PSI all around; torque lugs to 76 ft-lbs.',
-        completionCount: 6
+        intervalMiles: 6000,
+        intervalMonths: 0,
+        lastCompletedDate: '2026-07-03',
+        lastCompletedMileage: 103613,
+        baselineDate: '2026-07-03',
+        baselineMileage: 103613,
+        notes: '(Rear forward, front cross) • Torque lug nuts 108 ft-lbs',
+        completionCount: 1
       },
       {
-        id: 'task-rav4-cabin',
-        carId: 'car-rav4-2022',
-        title: 'Cabin & Hybrid HV Fan Filter Cleaning',
+        id: 'task-cx5-cabin-filter',
+        carId: 'car-371tooqm',
+        title: 'Cabin Air Filter',
         category: 'HVAC',
         intervalMiles: 15000,
-        intervalMonths: 12,
-        lastCompletedDate: '2025-10-05',
-        lastCompletedMileage: 19200,
-        baselineDate: '2025-10-05',
-        baselineMileage: 19200,
-        notes: 'Replace glovebox cabin filter and vacuum hybrid battery intake screen.',
-        completionCount: 2
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 79000,
+        baselineDate: null,
+        baselineMileage: 79000,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-cx5-engine-filter',
+        carId: 'car-371tooqm',
+        title: 'Engine Air Filter',
+        category: 'Engine',
+        intervalMiles: 25000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 79000,
+        baselineDate: null,
+        baselineMileage: 79000,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-cx5-brakes',
+        carId: 'car-371tooqm',
+        title: 'Brake Pads/rotors',
+        category: 'Brakes',
+        intervalMiles: 36000,
+        intervalMonths: 0,
+        lastCompletedDate: '2025-12-01',
+        lastCompletedMileage: 92628,
+        baselineDate: '2025-12-01',
+        baselineMileage: 92628,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-cx5-brake-fluid',
+        carId: 'car-371tooqm',
+        title: 'Brake Fluid',
+        category: 'Brakes',
+        intervalMiles: 0,
+        intervalMonths: 36,
+        lastCompletedDate: null,
+        lastCompletedMileage: null,
+        baselineDate: null,
+        baselineMileage: null,
+        notes: '',
+        completionCount: 0
+      },
+      {
+        id: 'task-cx5-rear-diff',
+        carId: 'car-371tooqm',
+        title: 'Rear Differential',
+        category: 'Drivetrain',
+        intervalMiles: 60000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 98805,
+        baselineDate: null,
+        baselineMileage: 98805,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-cx5-transfer-case',
+        carId: 'car-371tooqm',
+        title: 'Transfer Case',
+        category: 'Drivetrain',
+        intervalMiles: 60000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 98805,
+        baselineDate: null,
+        baselineMileage: 98805,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-cx5-coolant',
+        carId: 'car-371tooqm',
+        title: 'Coolant',
+        category: 'Cooling',
+        intervalMiles: 120000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: null,
+        baselineDate: null,
+        baselineMileage: null,
+        notes: '',
+        completionCount: 0
+      },
+      {
+        id: 'task-cx5-trans-fluid',
+        carId: 'car-371tooqm',
+        title: 'Transmission fluid',
+        category: 'Drivetrain',
+        intervalMiles: 75000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: null,
+        baselineDate: null,
+        baselineMileage: null,
+        notes: '',
+        completionCount: 0
+      },
+      {
+        id: 'task-cx5-spark-plugs',
+        carId: 'car-371tooqm',
+        title: 'Spark Plugs',
+        category: 'Ignition',
+        intervalMiles: 75000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 84500,
+        baselineDate: null,
+        baselineMileage: 84500,
+        notes: '',
+        completionCount: 1
       },
       {
         id: 'task-miata-oil',
@@ -300,53 +428,35 @@
         baselineMileage: 56400,
         notes: 'Pennzoil Ultra Platinum 5W-30 (4.5 qt) + OEM Mazda PE01-14-302B filter.',
         completionCount: 14
-      },
-      {
-        id: 'task-miata-brakes',
-        carId: 'car-miata-2018',
-        title: 'DOT 4 Brake & Clutch Fluid Flush',
-        category: 'Brakes',
-        intervalMiles: 15000,
-        intervalMonths: 12,
-        lastCompletedDate: '2025-09-20',
-        lastCompletedMileage: 48500,
-        baselineDate: '2025-09-20',
-        baselineMileage: 48500,
-        notes: 'Motul RBF 600 brake fluid flush before autumn track event.',
-        completionCount: 4
       }
     ];
 
     const logs = [
       {
-        id: 'log-rav4-1',
-        carId: 'car-rav4-2022',
-        taskId: 'task-rav4-tires',
-        taskTitle: 'Tire Rotation & Balance',
-        category: 'Tires & Wheels',
-        completedDate: '2026-08-10',
-        mileage: 32100,
-        cost: 35.0,
-        performedBy: 'America\'s Tire',
-        notes: 'Rotated front-to-rear and crossed fronts to rear. Tread depth measured 7/32" across all four Michelin Primacy tires. Re-torqued lug nuts to 76 ft-lbs.',
-        photos: [
-          {
-            id: 'photo-seed-1',
-            name: 'tire-tread-inspection.svg',
-            caption: 'Tread depth & rotation work order at 32,100 mi',
-            dataUrl: createSamplePhotoDataUrl(
-              'Tire Rotation & Balance',
-              '2022 Toyota RAV4 Hybrid • 32,100 miles • 2026-08-10',
-              '#0ea5e9',
-              [
-                'LF Tread: 7/32"  |  RF Tread: 7/32"',
-                'LR Tread: 7/32"  |  RR Tread: 7/32"',
-                'Cold Pressure: 35 PSI all corners',
-                'Lug Nut Torque: 76 ft-lbs verified'
-              ]
-            )
-          }
-        ]
+        id: 'log-cx5-1',
+        carId: 'car-371tooqm',
+        taskId: 'task-18tyc2gm',
+        taskTitle: 'Engine Oil/filter',
+        category: 'Engine',
+        completedDate: '2026-07-03',
+        mileage: 103613,
+        cost: 48.0,
+        performedBy: 'DIY Garage',
+        notes: 'Full synthetic 0W-20 oil + OEM oil filter, fuel cleaner, and tire rotation (rear forward, front cross).',
+        photos: []
+      },
+      {
+        id: 'log-cx5-2',
+        carId: 'car-371tooqm',
+        taskId: 'task-cx5-brakes',
+        taskTitle: 'Brake Pads/rotors',
+        category: 'Brakes',
+        completedDate: '2025-12-01',
+        mileage: 92628,
+        cost: 340.0,
+        performedBy: 'DIY Garage',
+        notes: 'Replaced brake pads and rotors at 92,628 miles (Dec 2025).',
+        photos: []
       },
       {
         id: 'log-miata-1',
@@ -358,83 +468,8 @@
         mileage: 56400,
         cost: 54.85,
         performedBy: 'DIY Garage',
-        notes: 'Drained warm oil, installed new aluminum crush washer (9956-41-400) torqued to 25 ft-lbs, and filled 4.5 quarts 5W-30 synthetic. Inspected serpentine belt—no cracking.',
-        photos: [
-          {
-            id: 'photo-seed-2',
-            name: 'miata-oil-service-receipt.svg',
-            caption: 'Parts receipt & odometer check at 56,400 mi',
-            dataUrl: createSamplePhotoDataUrl(
-              'DIY Oil & Filter Service',
-              '2018 Mazda MX-5 Miata • 56,400 miles • 2026-07-19',
-              '#f43f5e',
-              [
-                '1x Mazda OEM Oil Filter #PE01-14-302B   $11.95',
-                '1x Drain Plug Crush Washer #9956-41-400  $1.90',
-                '5qt Pennzoil Ultra Platinum 5W-30       $41.00',
-                'Odometer Verified: 56,400 MI'
-              ]
-            )
-          },
-          {
-            id: 'photo-seed-3',
-            name: 'odometer-56400.svg',
-            caption: 'Cluster odometer snapshot (56,400 mi)',
-            dataUrl: createSamplePhotoDataUrl(
-              'Odometer Photo Log',
-              'Cluster Reading: 56,400 MI • Trip A Reset: 0.0',
-              '#10b981',
-              [
-                'Oil Life Reminder Reset: COMPLETE',
-                'No Diagnostic Trouble Codes (DTCs)',
-                'Battery Voltage (Key On): 12.6V'
-              ]
-            )
-          }
-        ]
-      },
-      {
-        id: 'log-rav4-2',
-        carId: 'car-rav4-2022',
-        taskId: 'task-rav4-oil',
-        taskTitle: 'Engine Oil & Filter Change',
-        category: 'Engine',
-        completedDate: '2026-05-14',
-        mileage: 29850,
-        cost: 68.5,
-        performedBy: 'DIY Garage',
-        notes: '30k mile oil change with Toyota 0W-16 synthetic and OEM filter. Also inspected front and rear brake pads (9mm front / 8mm rear remaining).',
+        notes: 'Drained warm oil, installed new aluminum crush washer (9956-41-400) torqued to 25 ft-lbs, and filled 4.5 quarts 5W-30 synthetic.',
         photos: []
-      },
-      {
-        id: 'log-miata-2',
-        carId: 'car-miata-2018',
-        taskId: 'task-miata-brakes',
-        taskTitle: 'DOT 4 Brake & Clutch Fluid Flush',
-        category: 'Brakes',
-        completedDate: '2025-09-20',
-        mileage: 48500,
-        cost: 42.0,
-        performedBy: 'TrackSpec Motorsports',
-        notes: 'Pressure bled brake calipers (RR, LR, RF, LF) and clutch slave cylinder using Motul RBF 600. Front Brembo pads at 65% life.',
-        photos: [
-          {
-            id: 'photo-seed-4',
-            name: 'brembo-pad-check.svg',
-            caption: 'Front Brembo caliper & pad thickness inspection',
-            dataUrl: createSamplePhotoDataUrl(
-              'Brake & Clutch Fluid Flush',
-              '2018 Mazda MX-5 Miata • 48,500 miles • 2025-09-20',
-              '#f59e0b',
-              [
-                'Fluid Used: Motul RBF 600 DOT 4 (2x 500ml)',
-                'Front Pad Thickness: 7.5 mm (Even wear)',
-                'Rear Pad Thickness: 6.8 mm',
-                'Pedal Firmness: Tested & Verified'
-              ]
-            )
-          }
-        ]
       }
     ];
 
