@@ -1,0 +1,13 @@
+{
+  "name": "car-maintenance-tracker",
+  "version": "1.0.0",
+  "description": "Multi-vehicle maintenance tracker with recurring service schedules, mileage/date completion logs, notes, photo attachments, and service history.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test tests/app.test.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

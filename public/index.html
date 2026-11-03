@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1120">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GarageLog">
+  <title>GarageLog — Multi-Vehicle Maintenance &amp; Service Tracker</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-group">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/>
+            <circle cx="6.5" cy="16.5" r="2.5"/>
+            <circle cx="16.5" cy="16.5" r="2.5"/>
+          </svg>
+        </div>
+        <div>
+          <h1>GarageLog</h1>
+          <p class="brand-subtitle">Multi-Car Maintenance, Recurring Schedules &amp; Service History</p>
+        </div>
+      </div>
+
+      <nav aria-label="Garage Actions" class="header-actions">
+        <button type="button" id="btn-add-car" class="btn btn-secondary">
+          <span aria-hidden="true">+</span> Add Vehicle
+        </button>
+        <button type="button" id="btn-add-task" class="btn btn-secondary">
+          <span aria-hidden="true">↻</span> Add Recurring Task
+        </button>
+        <button type="button" id="btn-log-service" class="btn btn-primary">
+          <span aria-hidden="true">✓</span> Log Completed Service
+        </button>
+        <button type="button" id="btn-export-json" class="btn btn-ghost" aria-label="Export backup JSON">
+          Export JSON
+        </button>
+        <button type="button" id="btn-import-json" class="btn btn-ghost" aria-label="Import backup JSON">
+          Import JSON
+        </button>
+        <input type="file" id="import-json-input" accept=".json,application/json" class="visually-hidden" aria-label="Select backup JSON file">
+        <button type="button" id="btn-reset-demo" class="btn btn-ghost" aria-label="Reset demo data">
+          Reset Demo
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Summary KPI Bar -->
+    <section aria-labelledby="garage-summary-heading" class="summary-section">
+      <h2 id="garage-summary-heading" class="visually-hidden">Garage Overview Metrics</h2>
+      <div class="kpi-grid" id="kpi-grid">
+        <!-- Populated dynamically -->
+      </div>
+    </section>
+
+    <div class="workspace-grid">
+      <!-- Left Column: Fleet / Vehicles Selector & Active Vehicle Profile -->
+      <aside aria-labelledby="fleet-heading" class="fleet-sidebar">
+        <div class="section-header">
+          <h2 id="fleet-heading">My Garage Fleet</h2>
+          <button type="button" id="btn-sidebar-add-car" class="btn btn-sm btn-secondary">+ Car</button>
+        </div>
+        <p class="section-helper">Select a vehicle to filter schedules and history, or view all vehicles together.</p>
+
+        <div id="fleet-list" class="fleet-list" role="list">
+          <!-- Vehicle cards populated by app.js -->
+        </div>
+
+        <!-- Active Car Quick Odometer Card -->
+        <div id="active-car-panel" class="active-car-panel" hidden>
+          <!-- Populated when a specific car is selected -->
+        </div>
+      </aside>
+
+      <!-- Right Column: Recurring Maintenance Tasks & Service History -->
+      <div class="content-column">
+        <!-- Recurring Maintenance Schedules -->
+        <section aria-labelledby="recurring-heading" class="panel-section">
+          <div class="section-header-row">
+            <div>
+              <h2 id="recurring-heading">Recurring Maintenance Schedule</h2>
+              <p class="section-helper">Track interval tasks by mileage and time. Mark any task complete at a specific date and odometer reading.</p>
+            </div>
+            <div class="section-controls">
+              <div class="status-filter-pills" role="group" aria-label="Filter tasks by status">
+                <button type="button" class="pill-btn active" data-task-filter="all">All</button>
+                <button type="button" class="pill-btn" data-task-filter="overdue">Overdue</button>
+                <button type="button" class="pill-btn" data-task-filter="due-soon">Due Soon</button>
+                <button type="button" class="pill-btn" data-task-filter="on-track">On Track</button>
+              </div>
+              <button type="button" id="btn-section-add-task" class="btn btn-sm btn-primary">+ New Recurring Task</button>
+            </div>
+          </div>
+
+          <div id="tasks-container" class="tasks-grid">
+            <!-- Populated by app.js -->
+          </div>
+        </section>
+
+        <!-- Maintenance History Log (with Notes & Photos) -->
+        <section aria-labelledby="history-heading" class="panel-section">
+          <div class="section-header-row">
+            <div>
+              <h2 id="history-heading">Car Maintenance History</h2>
+              <p class="section-helper">Complete chronological service log with mileage, dates, mechanic/DIY notes, and attached photos.</p>
+            </div>
+            <button type="button" id="btn-section-log-service" class="btn btn-sm btn-secondary">+ Log Service Entry</button>
+          </div>
+
+          <search class="history-search-bar">
+            <form id="history-filter-form" class="filter-form" action="/history" method="GET">
+              <div class="filter-field">
+                <label for="history-search-input">Search notes, tasks, or shop</label>
+                <input
+                  type="search"
+                  id="history-search-input"
+                  name="q"
+                  placeholder="e.g., 0W-16, Brembo, rotation, DIY..."
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                >
+              </div>
+
+              <div class="filter-field">
+                <label for="history-category-filter">Category</label>
+                <select id="history-category-filter" name="category">
+                  <option value="all">All Categories</option>
+                  <option value="Engine">Engine</option>
+                  <option value="Tires & Wheels">Tires &amp; Wheels</option>
+                  <option value="Brakes">Brakes</option>
+                  <option value="HVAC">HVAC</option>
+                  <option value="Drivetrain">Drivetrain</option>
+                  <option value="Cooling">Cooling</option>
+                  <option value="Ignition">Ignition</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="General">General</option>
+                </select>
+              </div>
+
+              <div class="filter-field">
+                <label for="history-photo-filter">Attachments</label>
+                <select id="history-photo-filter" name="photos">
+                  <option value="all">All Entries</option>
+                  <option value="with-photos">With Photos Only</option>
+                </select>
+              </div>
+            </form>
+          </search>
+
+          <!-- Responsive Table following modern-web-guidance `responsive-table` -->
+          <div tabindex="0" role="region" aria-labelledby="history-table-caption" class="table-wrapper">
+            <table id="history-table" class="history-table">
+              <caption id="history-table-caption" class="visually-hidden">
+                Completed vehicle maintenance history records with date, mileage, service notes, and photo attachments
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Service &amp; Vehicle</th>
+                  <th scope="col">Date Completed</th>
+                  <th scope="col">Mileage</th>
+                  <th scope="col">Notes &amp; Shop</th>
+                  <th scope="col">Photos</th>
+                  <th scope="col">Cost</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="history-tbody">
+                <!-- Populated by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <p>GarageLog Vehicle Maintenance Tracker • Data persisted locally &amp; synced with SQLite API when running server</p>
+  </footer>
+
+  <!-- =====================================================================
+       MODAL 1: Add / Edit Vehicle (<dialog closedby="any">)
+       ===================================================================== -->
+  <dialog id="car-dialog" closedby="any" aria-labelledby="car-dialog-title">
+    <div class="dialog-header">
+      <h2 id="car-dialog-title">Add Vehicle to Garage</h2>
+      <button type="button" class="icon-close-btn" data-close-dialog="car-dialog" aria-label="Close vehicle dialog">✕</button>
+    </div>
+
+    <form id="car-form" method="POST" action="/api/cars" novalidate>
+      <input type="hidden" id="car-id" name="id">
+
+      <div class="form-row-2">
+        <div class="field">
+          <label for="car-year">Model Year *</label>
+          <span id="car-year-hint" class="hint">4-digit model year (1900–2030)</span>
+          <input
+            type="number"
+            id="car-year"
+            name="year"
+            min="1900"
+            max="2030"
+            required
+            inputmode="numeric"
+            aria-describedby="car-year-hint"
+            autofocus
+          >
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Please enter a valid year between 1900 and 2030.</div>
+        </div>
+
+        <div class="field">
+          <label for="car-mileage">Current Odometer (miles) *</label>
+          <span id="car-mileage-hint" class="hint">Current vehicle mileage reading</span>
+          <input
+            type="number"
+            id="car-mileage"
+            name="currentMileage"
+            min="0"
+            max="2000000"
+            required
+            inputmode="numeric"
+            aria-describedby="car-mileage-hint"
+          >
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Please enter a non-negative mileage reading.</div>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="field">
+          <label for="car-make">Make *</label>
+          <span id="car-make-hint" class="hint">e.g., Toyota, Honda, Mazda, Ford</span>
+          <input
+            type="text"
+            id="car-make"
+            name="make"
+            required
+            maxlength="50"
+            aria-describedby="car-make-hint"
+          >
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Vehicle make is required.</div>
+        </div>
+
+        <div class="field">
+          <label for="car-model">Model &amp; Trim *</label>
+          <span id="car-model-hint" class="hint">e.g., RAV4 Hybrid XSE, Civic Si</span>
+          <input
+            type="text"
+            id="car-model"
+            name="model"
+            required
+            maxlength="60"
+            aria-describedby="car-model-hint"
+          >
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Vehicle model is required.</div>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="field">
+          <label for="car-nickname">Nickname (Optional)</label>
+          <span id="car-nickname-hint" class="hint">Friendly label in your garage</span>
+          <input
+            type="text"
+            id="car-nickname"
+            name="nickname"
+            maxlength="40"
+            aria-describedby="car-nickname-hint"
+          >
+        </div>
+
+        <div class="field">
+          <label for="car-color">Badge Accent Color</label>
+          <span id="car-color-hint" class="hint">Visual tag color for this car</span>
+          <input
+            type="color"
+            id="car-color"
+            name="colorAccent"
+            value="#0ea5e9"
+            aria-describedby="car-color-hint"
+          >
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="field">
+          <label for="car-plate">License Plate (Optional)</label>
+          <span id="car-plate-hint" class="hint">Identifier (auto-correction disabled)</span>
+          <input
+            type="text"
+            id="car-plate"
+            name="licensePlate"
+            maxlength="16"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-describedby="car-plate-hint"
+          >
+        </div>
+
+        <div class="field">
+          <label for="car-vin">VIN (Optional)</label>
+          <span id="car-vin-hint" class="hint">17-character Vehicle Identification Number</span>
+          <input
+            type="text"
+            id="car-vin"
+            name="vin"
+            maxlength="17"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-describedby="car-vin-hint"
+          >
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="car-notes">Vehicle Specs &amp; Fluid Notes</label>
+        <span id="car-notes-hint" class="hint">Oil viscosity, filter part numbers, tire pressures, lug torque</span>
+        <textarea
+          id="car-notes"
+          name="notes"
+          rows="3"
+          aria-describedby="car-notes-hint"
+        ></textarea>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close-dialog="car-dialog">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Vehicle</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- =====================================================================
+       MODAL 2: Add / Edit Recurring Maintenance Task (<dialog closedby="any">)
+       ===================================================================== -->
+  <dialog id="task-dialog" closedby="any" aria-labelledby="task-dialog-title">
+    <div class="dialog-header">
+      <h2 id="task-dialog-title">Create Recurring Maintenance Task</h2>
+      <button type="button" class="icon-close-btn" data-close-dialog="task-dialog" aria-label="Close recurring task dialog">✕</button>
+    </div>
+
+    <form id="task-form" method="POST" action="/api/tasks" novalidate>
+      <input type="hidden" id="task-id" name="id">
+
+      <div class="field">
+        <label for="task-preset">Quick-Fill from Common Maintenance Presets (Optional)</label>
+        <span id="task-preset-hint" class="hint">Select a template to populate recommended mileage and month intervals</span>
+        <select id="task-preset" name="preset" aria-describedby="task-preset-hint">
+          <option value="">— Custom Recurring Task —</option>
+        </select>
+      </div>
+
+      <div class="form-row-2">
+        <div class="field">
+          <label for="task-car-id">Vehicle *</label>
+          <span id="task-car-hint" class="hint">Which car is this schedule for?</span>
+          <select id="task-car-id" name="carId" required aria-describedby="task-car-hint"></select>
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Please select a vehicle.</div>
+        </div>
+
+        <div class="field">
+          <label for="task-category">Service Category</label>
+          <span id="task-category-hint" class="hint">System or component group</span>
+          <select id="task-category" name="category" aria-describedby="task-category-hint">
+            <option value="Engine">Engine</option>
+            <option value="Tires & Wheels">Tires &amp; Wheels</option>
+            <option value="Brakes">Brakes</option>
+            <option value="HVAC">HVAC</option>
+            <option value="Drivetrain">Drivetrain</option>
+            <option value="Cooling">Cooling</option>
+            <option value="Ignition">Ignition</option>
+            <option value="Electrical">Electrical</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="task-title">Maintenance Task Name *</label>
+        <span id="task-title-hint" class="hint">e.g., Full Synthetic Oil &amp; Filter Change, Tire Rotation</span>
+        <input
+          type="text"
+          id="task-title"
+          name="title"
+          required
+          maxlength="80"
+          aria-describedby="task-title-hint"
+          autofocus
+        >
+        <div class="error-msg"><span aria-hidden="true">⚠</span> Please enter a task name.</div>
+      </div>
+
+      <fieldset class="interval-fieldset">
+        <legend>Recurring Interval (Whichever Comes First)</legend>
+        <div class="form-row-2">
+          <div class="field">
+            <label for="task-interval-miles">Repeat Every (Miles)</label>
+            <span id="task-miles-hint" class="hint">e.g., 5000 miles (0 to disable mileage interval)</span>
+            <input
+              type="number"
+              id="task-interval-miles"
+              name="intervalMiles"
+              min="0"
+              max="250000"
+              step="100"
+              value="5000"
+              inputmode="numeric"
+              aria-describedby="task-miles-hint"
+            >
+          </div>
+
+          <div class="field">
+            <label for="task-interval-months">Repeat Every (Months)</label>
+            <span id="task-months-hint" class="hint">e.g., 6 months (0 to disable time interval)</span>
+            <input
+              type="number"
+              id="task-interval-months"
+              name="intervalMonths"
+              min="0"
+              max="120"
+              value="6"
+              inputmode="numeric"
+              aria-describedby="task-months-hint"
+            >
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="interval-fieldset">
+        <legend>Last Performed Baseline (Optional)</legend>
+        <div class="form-row-2">
+          <div class="field">
+            <label for="task-last-date">Last Completed Date</label>
+            <span id="task-last-date-hint" class="hint">Used to calculate the next due date</span>
+            <input
+              type="date"
+              id="task-last-date"
+              name="lastCompletedDate"
+              aria-describedby="task-last-date-hint"
+            >
+          </div>
+
+          <div class="field">
+            <label for="task-last-mileage">Last Completed Mileage</label>
+            <span id="task-last-mileage-hint" class="hint">Used to calculate the next due mileage</span>
+            <input
+              type="number"
+              id="task-last-mileage"
+              name="lastCompletedMileage"
+              min="0"
+              max="2000000"
+              inputmode="numeric"
+              aria-describedby="task-last-mileage-hint"
+            >
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="task-notes">Procedure / Parts Notes</label>
+        <span id="task-notes-hint" class="hint">Recommended parts, torque specs, or fluid capacity</span>
+        <textarea id="task-notes" name="notes" rows="2" aria-describedby="task-notes-hint"></textarea>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close-dialog="task-dialog">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Recurring Schedule</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- =====================================================================
+       MODAL 3: Mark Task Complete / Log Service with Date, Mileage, Notes & Photos
+       ===================================================================== -->
+  <dialog id="complete-dialog" closedby="any" aria-labelledby="complete-dialog-title">
+    <div class="dialog-header">
+      <h2 id="complete-dialog-title">Mark Maintenance Complete</h2>
+      <button type="button" class="icon-close-btn" data-close-dialog="complete-dialog" aria-label="Close service completion dialog">✕</button>
+    </div>
+
+    <form id="complete-form" method="POST" action="/api/logs" novalidate>
+      <input type="hidden" id="complete-log-id" name="id">
+      <input type="hidden" id="complete-task-id" name="taskId">
+
+      <div class="form-row-2">
+        <div class="field">
+          <label for="complete-car-id">Vehicle *</label>
+          <span id="complete-car-hint" class="hint">Vehicle serviced</span>
+          <select id="complete-car-id" name="carId" required aria-describedby="complete-car-hint"></select>
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Please select a vehicle.</div>
+        </div>
+
+        <div class="field">
+          <label for="complete-task-select">Linked Recurring Task (Optional)</label>
+          <span id="complete-task-select-hint" class="hint">Automatically advances next due date &amp; mileage</span>
+          <select id="complete-task-select" name="linkedTaskSelect" aria-describedby="complete-task-select-hint">
+            <option value="">— One-Off / Unscheduled Service —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="field">
+          <label for="complete-title">Service / Task Name *</label>
+          <span id="complete-title-hint" class="hint">What maintenance was performed?</span>
+          <input
+            type="text"
+            id="complete-title"
+            name="taskTitle"
+            required
+            maxlength="80"
+            aria-describedby="complete-title-hint"
+          >
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Service title is required.</div>
+        </div>
+
+        <div class="field">
+          <label for="complete-category">Category</label>
+          <span id="complete-category-hint" class="hint">Service category</span>
+          <select id="complete-category" name="category" aria-describedby="complete-category-hint">
+            <option value="Engine">Engine</option>
+            <option value="Tires & Wheels">Tires &amp; Wheels</option>
+            <option value="Brakes">Brakes</option>
+            <option value="HVAC">HVAC</option>
+            <option value="Drivetrain">Drivetrain</option>
+            <option value="Cooling">Cooling</option>
+            <option value="Ignition">Ignition</option>
+            <option value="Electrical">Electrical</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row-2 highlight-completion-box">
+        <div class="field">
+          <label for="complete-date">Completion Date *</label>
+          <span id="complete-date-hint" class="hint">Date the maintenance was performed</span>
+          <input
+            type="date"
+            id="complete-date"
+            name="completedDate"
+            required
+            aria-describedby="complete-date-hint"
+            autofocus
+          >
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Please specify the completion date.</div>
+        </div>
+
+        <div class="field">
+          <label for="complete-mileage">Odometer Mileage at Service *</label>
+          <span id="complete-mileage-hint" class="hint">Exact mileage when completed</span>
+          <input
+            type="number"
+            id="complete-mileage"
+            name="mileage"
+            min="0"
+            max="2000000"
+            required
+            inputmode="numeric"
+            aria-describedby="complete-mileage-hint"
+          >
+          <div class="error-msg"><span aria-hidden="true">⚠</span> Please enter the mileage at completion.</div>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="field">
+          <label for="complete-cost">Total Cost ($ USD)</label>
+          <span id="complete-cost-hint" class="hint">Parts + labor cost (optional)</span>
+          <input
+            type="number"
+            id="complete-cost"
+            name="cost"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            inputmode="decimal"
+            aria-describedby="complete-cost-hint"
+          >
+        </div>
+
+        <div class="field">
+          <label for="complete-shop">Performed By / Shop</label>
+          <span id="complete-shop-hint" class="hint">e.g., DIY Garage, Dealership, Independent Shop</span>
+          <input
+            type="text"
+            id="complete-shop"
+            name="performedBy"
+            maxlength="60"
+            placeholder="DIY Garage"
+            aria-describedby="complete-shop-hint"
+          >
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="complete-notes">Service Notes &amp; Observations</label>
+        <span id="complete-notes-hint" class="hint">Record part numbers used, brake pad measurements, torque specs, or warranty info</span>
+        <textarea
+          id="complete-notes"
+          name="notes"
+          rows="3"
+          placeholder="e.g., Replaced oil & OEM filter, reset maintenance reminder, checked belt condition..."
+          aria-describedby="complete-notes-hint"
+        ></textarea>
+      </div>
+
+      <!-- Photo Upload & Instant Demo Receipt Generator -->
+      <div class="field photo-upload-section">
+        <div class="photo-upload-header">
+          <div>
+            <label for="complete-photos">Photos (Receipts, Old Parts, Odometer)</label>
+            <span id="complete-photos-hint" class="hint">Upload one or more images (JPEG, PNG, WebP, SVG) or generate a sample receipt photo</span>
+          </div>
+          <button type="button" id="btn-generate-sample-photo" class="btn btn-sm btn-secondary">
+            + Generate Sample Receipt Photo
+          </button>
+        </div>
+
+        <input
+          type="file"
+          id="complete-photos"
+          name="photos"
+          accept="image/*"
+          multiple
+          aria-describedby="complete-photos-hint"
+        >
+
+        <div id="photo-staging-grid" class="photo-staging-grid" aria-live="polite">
+          <!-- Staged photo thumbnails with caption input & remove button -->
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close-dialog="complete-dialog">Cancel</button>
+        <button type="submit" id="complete-submit-btn" class="btn btn-primary">Mark Complete &amp; Save to History</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- =====================================================================
+       MODAL 4: Photo Lightbox & Inspection Viewer (<dialog closedby="any">)
+       ===================================================================== -->
+  <dialog id="photo-dialog" closedby="any" aria-labelledby="photo-dialog-title">
+    <div class="dialog-header">
+      <h2 id="photo-dialog-title">Service Photo Attachment</h2>
+      <button type="button" class="icon-close-btn" data-close-dialog="photo-dialog" aria-label="Close photo viewer">✕</button>
+    </div>
+    <figure class="lightbox-figure">
+      <img id="lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Maintenance service attachment" width="640" height="420">
+      <figcaption id="lightbox-caption"></figcaption>
+    </figure>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close-dialog="photo-dialog" autofocus>Close Preview</button>
+    </div>
+  </dialog>
+
+  <script src="maintenance-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

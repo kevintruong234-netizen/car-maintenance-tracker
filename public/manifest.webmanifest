@@ -1,0 +1,19 @@
+{
+  "name": "GarageLog — Multi-Vehicle Maintenance Tracker",
+  "short_name": "GarageLog",
+  "description": "Multi-vehicle maintenance tracker with recurring service schedules, mileage/date completion logs, notes, photo attachments, and service history.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
