@@ -10,6 +10,7 @@
   } = window.MaintenanceEngine;
 
   const appState = {
+    updatedAt: null,
     cars: [],
     tasks: [],
     logs: [],
@@ -402,11 +403,11 @@
     });
   }
 
-  async function pullFromGitHubGist() {
+  async function pullFromGitHubGist({ force = false } = {}) {
     const cfg = getSyncConfig();
     if (!cfg.token) return false;
 
-    updateSyncStatusUi('syncing', 'Connecting to GitHub and pulling your private garage backup…');
+    updateSyncStatusUi('syncing', 'Connecting to GitHub and syncing your private garage backup…');
     try {
       const gist = await discoverOrCreateBackupGist(cfg.token, cfg.gistId);
       const fileObj = gist.files && gist.files[GIST_FILENAME];
@@ -418,8 +419,16 @@
 
       if (fileObj && fileObj.content) {
         const parsed = JSON.parse(fileObj.content);
-        if (parsed && Array.isArray(parsed.cars) && parsed.cars.length > 0) {
-          applyStatePayload(parsed, { skipCloudPush: true });
+        if (parsed && Array.isArray(parsed.cars)) {
+          const remoteUpdatedAt = parsed.updatedAt || null;
+          const localUpdatedAt = appState.updatedAt || null;
+
+          // If not forced and local state has newer edits/deletions than the Gist, push local to Gist instead of overwriting
+          if (!force && localUpdatedAt && (!remoteUpdatedAt || localUpdatedAt > remoteUpdatedAt)) {
+            return await pushToGitHubGist();
+          }
+
+          applyStatePayload(parsed, { skipCloudPush: true, preserveTimestamp: true });
         }
       }
 
@@ -442,10 +451,21 @@
     const cfg = getSyncConfig();
     if (!cfg.token) return false;
 
+    if (cloudPushTimer) {
+      clearTimeout(cloudPushTimer);
+      cloudPushTimer = null;
+    }
+
     updateSyncStatusUi('syncing', 'Saving changes to your Private GitHub Gist…');
     try {
-      const gist = await discoverOrCreateBackupGist(cfg.token, cfg.gistId);
+      let targetGistId = cfg.gistId;
+      if (!targetGistId) {
+        const gist = await discoverOrCreateBackupGist(cfg.token, '');
+        targetGistId = gist.id;
+      }
+
       const nowIso = new Date().toISOString();
+      appState.updatedAt = nowIso;
       const content = JSON.stringify(
         {
           updatedAt: nowIso,
@@ -457,25 +477,38 @@
         2
       );
 
-      await githubApiFetch(`/gists/${encodeURIComponent(gist.id)}`, cfg.token, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: 'GarageLog Private Cloud Backup (Multi-Vehicle Maintenance Tracker)',
-          files: {
-            [GIST_FILENAME]: { content }
-          }
-        })
+      const patchBody = JSON.stringify({
+        description: 'GarageLog Private Cloud Backup (Multi-Vehicle Maintenance Tracker)',
+        files: {
+          [GIST_FILENAME]: { content }
+        }
       });
 
-      saveSyncConfig({ gistId: gist.id, lastSyncedAt: nowIso });
+      try {
+        await githubApiFetch(`/gists/${encodeURIComponent(targetGistId)}`, cfg.token, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: patchBody
+        });
+      } catch {
+        const discovered = await discoverOrCreateBackupGist(cfg.token, '');
+        targetGistId = discovered.id;
+        await githubApiFetch(`/gists/${encodeURIComponent(targetGistId)}`, cfg.token, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: patchBody
+        });
+      }
+
+      saveLocalState({ skipCloudPush: true, preserveTimestamp: true });
+      saveSyncConfig({ gistId: targetGistId, lastSyncedAt: nowIso });
       const gistInput = document.getElementById('sync-gist-id-input');
-      if (gistInput) gistInput.value = gist.id;
+      if (gistInput) gistInput.value = targetGistId;
 
       const timeLabel = new Date(nowIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       updateSyncStatusUi(
         'connected',
-        `Auto-synced to Private GitHub Gist (${gist.id.slice(0, 8)}…) at ${timeLabel}`
+        `Auto-synced to Private GitHub Gist (${targetGistId.slice(0, 8)}…) at ${timeLabel}`
       );
       return true;
     } catch (err) {
@@ -493,11 +526,15 @@
     if (cloudPushTimer) clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(() => {
       pushToGitHubGist().catch(() => {});
-    }, 900);
+    }, 200);
   }
 
-  function saveLocalState({ skipCloudPush = false } = {}) {
+  function saveLocalState({ skipCloudPush = false, preserveTimestamp = false } = {}) {
+    if (!preserveTimestamp && !isInitialLoading) {
+      appState.updatedAt = new Date().toISOString();
+    }
     const snapshot = {
+      updatedAt: appState.updatedAt,
       cars: appState.cars,
       tasks: appState.tasks,
       logs: appState.logs
@@ -513,7 +550,10 @@
     }
   }
 
-  function applyStatePayload(data, { skipCloudPush = false } = {}) {
+  function applyStatePayload(data, { skipCloudPush = false, preserveTimestamp = false } = {}) {
+    if (preserveTimestamp) {
+      appState.updatedAt = data.updatedAt || null;
+    }
     appState.cars = Array.isArray(data.cars) ? data.cars : [];
     appState.tasks = Array.isArray(data.tasks) ? data.tasks : [];
     appState.logs = Array.isArray(data.logs) ? data.logs : [];
@@ -523,7 +563,7 @@
     ) {
       appState.selectedCarId = 'all';
     }
-    saveLocalState({ skipCloudPush });
+    saveLocalState({ skipCloudPush, preserveTimestamp });
     renderAll();
   }
 
@@ -542,7 +582,7 @@
       if (response.ok) {
         const data = await response.json();
         appState.apiAvailable = true;
-        applyStatePayload(data, { skipCloudPush: true });
+        applyStatePayload(data, { skipCloudPush: true, preserveTimestamp: true });
         isInitialLoading = false;
         return;
       }
@@ -550,12 +590,12 @@
       appState.apiAvailable = false;
     }
 
-    // 1. Check IndexedDB first (supports large photo libraries on iOS Safari)
+    // 1. Check IndexedDB first (supports large photo libraries & empty-garage deletions on iOS Safari)
     let loadedLocal = false;
     try {
       const idbData = await idbLoadState();
-      if (idbData && Array.isArray(idbData.cars) && idbData.cars.length > 0) {
-        applyStatePayload(idbData, { skipCloudPush: true });
+      if (idbData && Array.isArray(idbData.cars)) {
+        applyStatePayload(idbData, { skipCloudPush: true, preserveTimestamp: true });
         loadedLocal = true;
       }
     } catch {
@@ -568,8 +608,8 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed.cars) && parsed.cars.length > 0) {
-            applyStatePayload(parsed, { skipCloudPush: true });
+          if (parsed && Array.isArray(parsed.cars)) {
+            applyStatePayload(parsed, { skipCloudPush: true, preserveTimestamp: true });
             loadedLocal = true;
           }
         }
@@ -579,14 +619,14 @@
     }
 
     if (!loadedLocal) {
-      applyStatePayload(createInitialSeedData(), { skipCloudPush: true });
+      applyStatePayload(createInitialSeedData(), { skipCloudPush: true, preserveTimestamp: true });
     }
 
     isInitialLoading = false;
 
-    // 3. If Private GitHub Sync is configured (or just paired via URL hash), pull latest cloud state
+    // 3. If Private GitHub Sync is configured (or just paired via URL hash), sync with Gist
     if (syncCfg.token || pairedFromUrl) {
-      await pullFromGitHubGist();
+      await pullFromGitHubGist({ force: false });
     }
   }
 
@@ -1446,9 +1486,10 @@
         const token = document.getElementById('sync-token-input').value.trim();
         const gistId = document.getElementById('sync-gist-id-input').value.trim();
         saveSyncConfig({ token, gistId });
-        const ok = await pullFromGitHubGist();
-        if (ok) {
+        if (appState.updatedAt) {
           await pushToGitHubGist();
+        } else {
+          await pullFromGitHubGist({ force: false });
         }
       });
     }
@@ -1460,7 +1501,7 @@
         const token = document.getElementById('sync-token-input').value.trim();
         const gistId = document.getElementById('sync-gist-id-input').value.trim();
         if (token) saveSyncConfig({ token, gistId });
-        await pullFromGitHubGist();
+        await pullFromGitHubGist({ force: true });
       });
     }
 
