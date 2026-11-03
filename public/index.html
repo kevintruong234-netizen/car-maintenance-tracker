@@ -14,11 +14,12 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="app-shell">
   <header class="app-header">
     <div class="header-inner">
       <div class="brand-group">
         <div class="brand-logo" aria-hidden="true">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/>
             <circle cx="6.5" cy="16.5" r="2.5"/>
             <circle cx="16.5" cy="16.5" r="2.5"/>
@@ -31,26 +32,67 @@
       </div>
 
       <nav aria-label="Garage Actions" class="header-actions">
-        <button type="button" id="btn-add-car" class="btn btn-secondary">
-          <span aria-hidden="true">+</span> Add Vehicle
-        </button>
-        <button type="button" id="btn-add-task" class="btn btn-secondary">
-          <span aria-hidden="true">↻</span> Add Recurring Task
-        </button>
-        <button type="button" id="btn-log-service" class="btn btn-primary">
-          <span aria-hidden="true">✓</span> Log Completed Service
-        </button>
-        <button type="button" id="btn-export-json" class="btn btn-ghost" aria-label="Export backup JSON">
-          Export JSON
-        </button>
-        <button type="button" id="btn-import-json" class="btn btn-ghost" aria-label="Import backup JSON">
-          Import JSON
-        </button>
+        <div class="desktop-actions-group">
+          <button type="button" id="btn-add-car" class="btn btn-sm btn-secondary">
+            <span aria-hidden="true">+</span> Add Vehicle
+          </button>
+          <button type="button" id="btn-add-task" class="btn btn-sm btn-secondary">
+            <span aria-hidden="true">↻</span> Add Task
+          </button>
+          <button type="button" id="btn-export-json" class="btn btn-sm btn-ghost" aria-label="Export backup JSON">
+            Export JSON
+          </button>
+          <button type="button" id="btn-import-json" class="btn btn-sm btn-ghost" aria-label="Import backup JSON">
+            Import JSON
+          </button>
+          <button type="button" id="btn-reset-demo" class="btn btn-sm btn-ghost" aria-label="Reset demo data">
+            Reset Demo
+          </button>
+        </div>
+
         <input type="file" id="import-json-input" accept=".json,application/json" class="visually-hidden" aria-label="Select backup JSON file">
-        <button type="button" id="btn-reset-demo" class="btn btn-ghost" aria-label="Reset demo data">
-          Reset Demo
+
+        <button type="button" id="btn-log-service" class="btn btn-sm btn-primary header-primary-cta">
+          <span aria-hidden="true">✓</span> Log Service
+        </button>
+
+        <button
+          type="button"
+          id="btn-mobile-menu"
+          class="btn btn-sm btn-secondary mobile-menu-trigger"
+          commandfor="mobile-actions-popover"
+          command="toggle-popover"
+          aria-label="Open actions and backup menu"
+        >
+          <span aria-hidden="true">⋯</span> Menu
         </button>
       </nav>
+    </div>
+
+    <div id="mobile-actions-popover" class="mobile-actions-popover" popover>
+      <div class="popover-menu-header">
+        <strong>Garage Actions &amp; Backup</strong>
+        <button type="button" class="icon-close-btn" commandfor="mobile-actions-popover" command="hide-popover" aria-label="Close menu">✕</button>
+      </div>
+      <div class="popover-menu-list">
+        <button type="button" class="popover-menu-item" data-mobile-action="add-car">
+          <span aria-hidden="true">+</span> Add Vehicle
+        </button>
+        <button type="button" class="popover-menu-item" data-mobile-action="add-task">
+          <span aria-hidden="true">↻</span> Add Recurring Task
+        </button>
+        <hr class="popover-divider">
+        <button type="button" class="popover-menu-item" data-mobile-action="export-json">
+          <span aria-hidden="true">↓</span> Export Backup JSON
+        </button>
+        <button type="button" class="popover-menu-item" data-mobile-action="import-json">
+          <span aria-hidden="true">↑</span> Import Backup JSON
+        </button>
+        <hr class="popover-divider">
+        <button type="button" class="popover-menu-item popover-menu-danger" data-mobile-action="reset-demo">
+          <span aria-hidden="true">↺</span> Reset Demo Data
+        </button>
+      </div>
     </div>
   </header>
 
@@ -65,7 +107,7 @@
 
     <div class="workspace-grid">
       <!-- Left Column: Fleet / Vehicles Selector & Active Vehicle Profile -->
-      <aside aria-labelledby="fleet-heading" class="fleet-sidebar">
+      <aside id="fleet-section" aria-labelledby="fleet-heading" class="fleet-sidebar">
         <div class="section-header">
           <h2 id="fleet-heading">My Garage Fleet</h2>
           <button type="button" id="btn-sidebar-add-car" class="btn btn-sm btn-secondary">+ Car</button>
@@ -85,7 +127,7 @@
       <!-- Right Column: Recurring Maintenance Tasks & Service History -->
       <div class="content-column">
         <!-- Recurring Maintenance Schedules -->
-        <section aria-labelledby="recurring-heading" class="panel-section">
+        <section id="schedules-section" aria-labelledby="recurring-heading" class="panel-section">
           <div class="section-header-row">
             <div>
               <h2 id="recurring-heading">Recurring Maintenance Schedule</h2>
@@ -108,7 +150,7 @@
         </section>
 
         <!-- Maintenance History Log (with Notes & Photos) -->
-        <section aria-labelledby="history-heading" class="panel-section">
+        <section id="history-section" aria-labelledby="history-heading" class="panel-section">
           <div class="section-header-row">
             <div>
               <h2 id="history-heading">Car Maintenance History</h2>
@@ -188,6 +230,27 @@
   <footer class="app-footer">
     <p>GarageLog Vehicle Maintenance Tracker • Data persisted locally &amp; synced with SQLite API when running server</p>
   </footer>
+  </div>
+
+  <!-- Mobile Bottom Quick-Navigation Bar -->
+  <nav class="mobile-bottom-nav" aria-label="Mobile quick navigation">
+    <a href="#fleet-section" class="bottom-nav-item">
+      <span aria-hidden="true">🚗</span>
+      <span>Vehicles</span>
+    </a>
+    <a href="#schedules-section" class="bottom-nav-item">
+      <span aria-hidden="true">↻</span>
+      <span>Schedules</span>
+    </a>
+    <a href="#history-section" class="bottom-nav-item">
+      <span aria-hidden="true">📋</span>
+      <span>History</span>
+    </a>
+    <button type="button" class="bottom-nav-item bottom-nav-cta" data-mobile-action="log-service">
+      <span aria-hidden="true">✓</span>
+      <span>Log Service</span>
+    </button>
+  </nav>
 
   <!-- =====================================================================
        MODAL 1: Add / Edit Vehicle (<dialog closedby="any">)
@@ -667,6 +730,14 @@
     </div>
   </dialog>
 
+  <script type="module">
+    if (!('popover' in HTMLElement.prototype)) {
+      import('https://unpkg.com/@oddbird/popover-polyfill@latest/dist/popover.min.js').catch(() => {});
+    }
+    if (!('commandForElement' in HTMLButtonElement.prototype)) {
+      import('https://esm.run/invokers-polyfill').catch(() => {});
+    }
+  </script>
   <script src="maintenance-engine.js"></script>
   <script src="app.js"></script>
 </body>

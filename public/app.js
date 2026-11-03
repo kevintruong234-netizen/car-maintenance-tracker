@@ -57,6 +57,56 @@
         if (dlg && dlg.open) dlg.close();
       });
     });
+
+    // Offline / non-native fallback for declarative `commandfor` popover buttons (`declarative-dialog-popover-control`)
+    if (!('commandForElement' in HTMLButtonElement.prototype)) {
+      document.addEventListener('click', (event) => {
+        const button = event.composedPath().find((el) => el.matches?.('button[commandfor]'));
+        if (!button) return;
+        const target = document.getElementById(button.getAttribute('commandfor'));
+        const command = button.getAttribute('command');
+        if (!target || !command) return;
+        if (command === 'toggle-popover' && typeof target.togglePopover === 'function') {
+          target.togglePopover();
+        } else if (command === 'hide-popover' && typeof target.hidePopover === 'function') {
+          target.hidePopover();
+        } else if (command === 'show-popover' && typeof target.showPopover === 'function') {
+          target.showPopover();
+        }
+      });
+    }
+
+    // IntersectionObserver `.is-stuck` fallback for sticky header (`state-aware-sticky-headers`)
+    function getScrollParent(node) {
+      if (node == null || node === document.body || node === document.documentElement) {
+        return null;
+      }
+      if (node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth) {
+        const overflow = getComputedStyle(node).overflow;
+        if (overflow !== 'visible' && overflow !== 'clip') {
+          return node;
+        }
+      }
+      return getScrollParent(node.parentNode);
+    }
+
+    if (typeof IntersectionObserver !== 'undefined') {
+      document.querySelectorAll('.app-header').forEach((container) => {
+        const root = getScrollParent(container);
+        const topOffset = parseFloat(getComputedStyle(container).top) || 0;
+        const observer = new IntersectionObserver(
+          ([e]) => {
+            e.target.classList.toggle('is-stuck', e.intersectionRatio < 1);
+          },
+          {
+            root,
+            threshold: [1],
+            rootMargin: `-${topOffset + 1}px 0px 0px 0px`
+          }
+        );
+        observer.observe(container);
+      });
+    }
   }
 
   const UserInvalidFallback = (() => {
@@ -1115,6 +1165,34 @@
       } else {
         applyStatePayload(createInitialSeedData());
       }
+    });
+
+    // Mobile popover menu & bottom bar actions
+    const mobilePopover = document.getElementById('mobile-actions-popover');
+    document.querySelectorAll('[data-mobile-action]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-mobile-action');
+        if (mobilePopover && typeof mobilePopover.hidePopover === 'function') {
+          try {
+            mobilePopover.hidePopover();
+          } catch {
+            // ignore if already hidden
+          }
+        }
+        if (action === 'add-car') {
+          openCarDialog();
+        } else if (action === 'add-task') {
+          openTaskDialog();
+        } else if (action === 'log-service') {
+          openCompleteDialog();
+        } else if (action === 'export-json') {
+          document.getElementById('btn-export-json').click();
+        } else if (action === 'import-json') {
+          document.getElementById('import-json-input').click();
+        } else if (action === 'reset-demo') {
+          document.getElementById('btn-reset-demo').click();
+        }
+      });
     });
 
     // Task status filter pills
