@@ -211,4 +211,11 @@ test('PWA assets (manifest.webmanifest, sw.js, icon.svg) and Import JSON UI are 
   assert.ok(indexHtml.includes('manifest.webmanifest'));
   assert.ok(indexHtml.includes('apple-mobile-web-app-capable'));
   assert.ok(indexHtml.includes('id="btn-import-json"'));
+  assert.ok(indexHtml.includes('id="sync-dialog"'));
+  assert.ok(indexHtml.includes('id="sync-token-input"'));
+
+  const appJs = fs.readFileSync(path.join(publicDir, 'app.js'), 'utf8');
+  assert.ok(appJs.includes('discoverOrCreateBackupGist'));
+  assert.ok(appJs.includes('pullFromGitHubGist'));
+  assert.ok(appJs.includes('pushToGitHubGist'));
 });

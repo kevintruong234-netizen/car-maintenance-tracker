@@ -240,7 +240,263 @@
     });
   }
 
-  function saveLocalState() {
+  const SYNC_CONFIG_KEY = 'garagelog_github_sync_v1';
+  const GIST_FILENAME = 'garagelog-cloud-sync.json';
+  let cloudPushTimer = null;
+  let isInitialLoading = true;
+
+  function getSyncConfig() {
+    try {
+      const raw = localStorage.getItem(SYNC_CONFIG_KEY);
+      if (!raw) return { token: '', gistId: '', lastSyncedAt: null };
+      const parsed = JSON.parse(raw);
+      return {
+        token: String(parsed.token || '').trim(),
+        gistId: String(parsed.gistId || '').trim(),
+        lastSyncedAt: parsed.lastSyncedAt || null
+      };
+    } catch {
+      return { token: '', gistId: '', lastSyncedAt: null };
+    }
+  }
+
+  function saveSyncConfig(partial) {
+    const next = { ...getSyncConfig(), ...partial };
+    try {
+      localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(next));
+    } catch {
+      // ignore storage quota errors
+    }
+    return next;
+  }
+
+  function clearSyncConfig() {
+    try {
+      localStorage.removeItem(SYNC_CONFIG_KEY);
+    } catch {
+      // ignore
+    }
+    updateSyncStatusUi('disconnected', 'Disconnected from GitHub Cloud Sync. Data remains saved locally on this device.');
+  }
+
+  function consumeUrlSyncHash() {
+    if (!window.location.hash || !window.location.hash.includes('syncToken=')) {
+      return false;
+    }
+    try {
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      const token = (params.get('syncToken') || '').trim();
+      const gistId = (params.get('gistId') || '').trim();
+      if (token) {
+        saveSyncConfig({ token, gistId: gistId || getSyncConfig().gistId });
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        return true;
+      }
+    } catch {
+      // ignore malformed hash
+    }
+    return false;
+  }
+
+  function updateSyncStatusUi(status, bannerMessage) {
+    const dots = [
+      document.getElementById('sync-header-dot'),
+      document.getElementById('sync-mobile-dot'),
+      document.getElementById('sync-menu-dot')
+    ];
+    dots.forEach((dot) => {
+      if (!dot) return;
+      dot.classList.remove('connected', 'syncing', 'error');
+      if (status === 'connected' || status === 'syncing' || status === 'error') {
+        dot.classList.add(status);
+      }
+    });
+
+    const headerLabel = document.getElementById('sync-header-label');
+    const menuLabel = document.getElementById('sync-menu-label');
+    if (headerLabel) {
+      headerLabel.textContent =
+        status === 'connected'
+          ? 'Cloud Synced'
+          : status === 'syncing'
+            ? 'Syncing…'
+            : status === 'error'
+              ? 'Sync Error'
+              : 'Cloud Sync';
+    }
+    if (menuLabel) {
+      menuLabel.textContent =
+        status === 'connected'
+          ? 'Cloud Sync (Connected)'
+          : status === 'syncing'
+            ? 'Cloud Sync (Syncing…)'
+            : 'Private GitHub Cloud Sync';
+    }
+
+    const banner = document.getElementById('sync-status-banner');
+    if (banner && bannerMessage) {
+      banner.classList.remove('connected', 'error');
+      if (status === 'connected') banner.classList.add('connected');
+      if (status === 'error') banner.classList.add('error');
+      banner.textContent = bannerMessage;
+    }
+  }
+
+  async function githubApiFetch(path, token, options = {}) {
+    const res = await fetch(`https://api.github.com${path}`, {
+      ...options,
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(options.headers || {})
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`GitHub API HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  async function discoverOrCreateBackupGist(token, preferredGistId) {
+    if (preferredGistId) {
+      try {
+        const gist = await githubApiFetch(`/gists/${encodeURIComponent(preferredGistId)}`, token);
+        if (gist && gist.id) return gist;
+      } catch {
+        // Fallback to discovery if Gist ID was not found
+      }
+    }
+
+    const list = await githubApiFetch('/gists?per_page=100', token);
+    const match = Array.isArray(list)
+      ? list.find((g) => g && g.files && g.files[GIST_FILENAME])
+      : null;
+
+    if (match && match.id) {
+      return githubApiFetch(`/gists/${encodeURIComponent(match.id)}`, token);
+    }
+
+    const initialPayload = JSON.stringify(
+      {
+        updatedAt: new Date().toISOString(),
+        cars: appState.cars,
+        tasks: appState.tasks,
+        logs: appState.logs
+      },
+      null,
+      2
+    );
+
+    return githubApiFetch('/gists', token, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        description: 'GarageLog Private Cloud Backup (Multi-Vehicle Maintenance Tracker)',
+        public: false,
+        files: {
+          [GIST_FILENAME]: { content: initialPayload }
+        }
+      })
+    });
+  }
+
+  async function pullFromGitHubGist() {
+    const cfg = getSyncConfig();
+    if (!cfg.token) return false;
+
+    updateSyncStatusUi('syncing', 'Connecting to GitHub and pulling your private garage backup…');
+    try {
+      const gist = await discoverOrCreateBackupGist(cfg.token, cfg.gistId);
+      const fileObj = gist.files && gist.files[GIST_FILENAME];
+      const nowIso = new Date().toISOString();
+      saveSyncConfig({ gistId: gist.id, lastSyncedAt: nowIso });
+
+      const gistInput = document.getElementById('sync-gist-id-input');
+      if (gistInput) gistInput.value = gist.id;
+
+      if (fileObj && fileObj.content) {
+        const parsed = JSON.parse(fileObj.content);
+        if (parsed && Array.isArray(parsed.cars) && parsed.cars.length > 0) {
+          applyStatePayload(parsed, { skipCloudPush: true });
+        }
+      }
+
+      const timeLabel = new Date(nowIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      updateSyncStatusUi(
+        'connected',
+        `Connected to Private GitHub Gist (${gist.id.slice(0, 8)}…) • Last synced at ${timeLabel}`
+      );
+      return true;
+    } catch (err) {
+      updateSyncStatusUi(
+        'error',
+        `GitHub Cloud Sync failed (${err.message || 'Check token & gist permissions'}). Local data is still safe.`
+      );
+      return false;
+    }
+  }
+
+  async function pushToGitHubGist() {
+    const cfg = getSyncConfig();
+    if (!cfg.token) return false;
+
+    updateSyncStatusUi('syncing', 'Saving changes to your Private GitHub Gist…');
+    try {
+      const gist = await discoverOrCreateBackupGist(cfg.token, cfg.gistId);
+      const nowIso = new Date().toISOString();
+      const content = JSON.stringify(
+        {
+          updatedAt: nowIso,
+          cars: appState.cars,
+          tasks: appState.tasks,
+          logs: appState.logs
+        },
+        null,
+        2
+      );
+
+      await githubApiFetch(`/gists/${encodeURIComponent(gist.id)}`, cfg.token, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: 'GarageLog Private Cloud Backup (Multi-Vehicle Maintenance Tracker)',
+          files: {
+            [GIST_FILENAME]: { content }
+          }
+        })
+      });
+
+      saveSyncConfig({ gistId: gist.id, lastSyncedAt: nowIso });
+      const gistInput = document.getElementById('sync-gist-id-input');
+      if (gistInput) gistInput.value = gist.id;
+
+      const timeLabel = new Date(nowIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      updateSyncStatusUi(
+        'connected',
+        `Auto-synced to Private GitHub Gist (${gist.id.slice(0, 8)}…) at ${timeLabel}`
+      );
+      return true;
+    } catch (err) {
+      updateSyncStatusUi(
+        'error',
+        `Could not push to GitHub (${err.message || 'offline'}). Saved locally on device.`
+      );
+      return false;
+    }
+  }
+
+  function scheduleCloudPush() {
+    const cfg = getSyncConfig();
+    if (!cfg.token || isInitialLoading) return;
+    if (cloudPushTimer) clearTimeout(cloudPushTimer);
+    cloudPushTimer = setTimeout(() => {
+      pushToGitHubGist().catch(() => {});
+    }, 900);
+  }
+
+  function saveLocalState({ skipCloudPush = false } = {}) {
     const snapshot = {
       cars: appState.cars,
       tasks: appState.tasks,
@@ -252,9 +508,12 @@
     } catch {
       // Quota exceeded (e.g., >5MB of photos in localStorage); IndexedDB handles large storage
     }
+    if (!skipCloudPush) {
+      scheduleCloudPush();
+    }
   }
 
-  function applyStatePayload(data) {
+  function applyStatePayload(data, { skipCloudPush = false } = {}) {
     appState.cars = Array.isArray(data.cars) ? data.cars : [];
     appState.tasks = Array.isArray(data.tasks) ? data.tasks : [];
     appState.logs = Array.isArray(data.logs) ? data.logs : [];
@@ -264,17 +523,27 @@
     ) {
       appState.selectedCarId = 'all';
     }
-    saveLocalState();
+    saveLocalState({ skipCloudPush });
     renderAll();
   }
 
   async function loadInitialData() {
+    const pairedFromUrl = consumeUrlSyncHash();
+    const syncCfg = getSyncConfig();
+    if (syncCfg.token) {
+      updateSyncStatusUi(
+        'connected',
+        `Configured with Private GitHub Gist${syncCfg.gistId ? ` (${syncCfg.gistId.slice(0, 8)}…)` : ''}`
+      );
+    }
+
     try {
       const response = await fetch('/api/state', { headers: { Accept: 'application/json' } });
       if (response.ok) {
         const data = await response.json();
         appState.apiAvailable = true;
-        applyStatePayload(data);
+        applyStatePayload(data, { skipCloudPush: true });
+        isInitialLoading = false;
         return;
       }
     } catch {
@@ -282,30 +551,43 @@
     }
 
     // 1. Check IndexedDB first (supports large photo libraries on iOS Safari)
+    let loadedLocal = false;
     try {
       const idbData = await idbLoadState();
       if (idbData && Array.isArray(idbData.cars) && idbData.cars.length > 0) {
-        applyStatePayload(idbData);
-        return;
+        applyStatePayload(idbData, { skipCloudPush: true });
+        loadedLocal = true;
       }
     } catch {
       // ignore IndexedDB errors
     }
 
     // 2. Fallback to localStorage (and auto-migrate to IndexedDB)
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.cars) && parsed.cars.length > 0) {
-          applyStatePayload(parsed);
-          return;
+    if (!loadedLocal) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed.cars) && parsed.cars.length > 0) {
+            applyStatePayload(parsed, { skipCloudPush: true });
+            loadedLocal = true;
+          }
         }
+      } catch {
+        // ignore parse errors
       }
-    } catch {
-      // ignore parse errors
     }
-    applyStatePayload(createInitialSeedData());
+
+    if (!loadedLocal) {
+      applyStatePayload(createInitialSeedData(), { skipCloudPush: true });
+    }
+
+    isInitialLoading = false;
+
+    // 3. If Private GitHub Sync is configured (or just paired via URL hash), pull latest cloud state
+    if (syncCfg.token || pairedFromUrl) {
+      await pullFromGitHubGist();
+    }
   }
 
   async function apiRequest(url, method, body) {
@@ -1112,6 +1394,120 @@
     document.getElementById('btn-log-service').addEventListener('click', () => openCompleteDialog());
     document.getElementById('btn-section-log-service').addEventListener('click', () => openCompleteDialog());
 
+    const cloudSyncBtn = document.getElementById('btn-cloud-sync');
+    if (cloudSyncBtn) {
+      cloudSyncBtn.addEventListener('click', () => openSyncDialog());
+    }
+
+    function openSyncDialog() {
+      const dialog = document.getElementById('sync-dialog');
+      if (!dialog) return;
+      const cfg = getSyncConfig();
+      const tokenInput = document.getElementById('sync-token-input');
+      const gistInput = document.getElementById('sync-gist-id-input');
+      if (tokenInput) {
+        tokenInput.value = cfg.token || '';
+        tokenInput.type = 'password';
+      }
+      const toggleBtn = document.getElementById('toggle-sync-token');
+      if (toggleBtn) {
+        toggleBtn.setAttribute('aria-pressed', 'false');
+        toggleBtn.textContent = 'Show';
+      }
+      if (gistInput) {
+        gistInput.value = cfg.gistId || '';
+      }
+      dialog.showModal();
+    }
+
+    // Show / Hide token toggle per `forms` Section 8
+    const toggleTokenBtn = document.getElementById('toggle-sync-token');
+    if (toggleTokenBtn) {
+      toggleTokenBtn.addEventListener('click', () => {
+        const tokenInput = document.getElementById('sync-token-input');
+        if (!tokenInput) return;
+        const isShowing = tokenInput.type === 'text';
+        tokenInput.type = isShowing ? 'password' : 'text';
+        toggleTokenBtn.setAttribute('aria-pressed', String(!isShowing));
+        toggleTokenBtn.setAttribute('aria-label', isShowing ? 'Show token' : 'Hide token');
+        toggleTokenBtn.textContent = isShowing ? 'Show' : 'Hide';
+      });
+    }
+
+    // Save & Sync Form Submit
+    const syncForm = document.getElementById('sync-form');
+    if (syncForm) {
+      syncForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!syncForm.checkValidity()) {
+          syncForm.reportValidity();
+          return;
+        }
+        const token = document.getElementById('sync-token-input').value.trim();
+        const gistId = document.getElementById('sync-gist-id-input').value.trim();
+        saveSyncConfig({ token, gistId });
+        const ok = await pullFromGitHubGist();
+        if (ok) {
+          await pushToGitHubGist();
+        }
+      });
+    }
+
+    // Pull & Push quick action buttons inside Cloud Sync modal
+    const pullBtn = document.getElementById('btn-sync-pull');
+    if (pullBtn) {
+      pullBtn.addEventListener('click', async () => {
+        const token = document.getElementById('sync-token-input').value.trim();
+        const gistId = document.getElementById('sync-gist-id-input').value.trim();
+        if (token) saveSyncConfig({ token, gistId });
+        await pullFromGitHubGist();
+      });
+    }
+
+    const pushBtn = document.getElementById('btn-sync-push');
+    if (pushBtn) {
+      pushBtn.addEventListener('click', async () => {
+        const token = document.getElementById('sync-token-input').value.trim();
+        const gistId = document.getElementById('sync-gist-id-input').value.trim();
+        if (token) saveSyncConfig({ token, gistId });
+        await pushToGitHubGist();
+      });
+    }
+
+    const copySetupLinkBtn = document.getElementById('btn-copy-setup-link');
+    if (copySetupLinkBtn) {
+      copySetupLinkBtn.addEventListener('click', async () => {
+        const token = document.getElementById('sync-token-input').value.trim() || getSyncConfig().token;
+        const gistId = document.getElementById('sync-gist-id-input').value.trim() || getSyncConfig().gistId;
+        if (!token) {
+          updateSyncStatusUi('error', 'Enter your GitHub Token first before copying a New-Phone Setup Link.');
+          return;
+        }
+        const base = window.location.origin + window.location.pathname;
+        const hashParams = new URLSearchParams({ syncToken: token });
+        if (gistId) hashParams.set('gistId', gistId);
+        const setupUrl = `${base}#${hashParams.toString()}`;
+        try {
+          await navigator.clipboard.writeText(setupUrl);
+          updateSyncStatusUi(
+            'connected',
+            'Copied New-Phone Setup Link! Open that link on your iPhone to connect Private GitHub Sync in 1 tap.'
+          );
+        } catch {
+          updateSyncStatusUi('connected', `Setup Link: ${setupUrl}`);
+        }
+      });
+    }
+
+    const disconnectBtn = document.getElementById('btn-sync-disconnect');
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener('click', () => {
+        clearSyncConfig();
+        document.getElementById('sync-token-input').value = '';
+        document.getElementById('sync-gist-id-input').value = '';
+      });
+    }
+
     // Export JSON
     document.getElementById('btn-export-json').addEventListener('click', () => {
       const payload = JSON.stringify(
@@ -1179,7 +1575,9 @@
             // ignore if already hidden
           }
         }
-        if (action === 'add-car') {
+        if (action === 'cloud-sync') {
+          openSyncDialog();
+        } else if (action === 'add-car') {
           openCarDialog();
         } else if (action === 'add-task') {
           openTaskDialog();

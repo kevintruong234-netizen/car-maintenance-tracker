@@ -39,6 +39,10 @@
           <button type="button" id="btn-add-task" class="btn btn-sm btn-secondary">
             <span aria-hidden="true">↻</span> Add Task
           </button>
+          <button type="button" id="btn-cloud-sync" class="btn btn-sm btn-secondary" aria-label="Configure Private GitHub Cloud Sync">
+            <span id="sync-header-dot" class="sync-status-dot" aria-hidden="true"></span>
+            <span id="sync-header-label">Cloud Sync</span>
+          </button>
           <button type="button" id="btn-export-json" class="btn btn-sm btn-ghost" aria-label="Export backup JSON">
             Export JSON
           </button>
@@ -64,6 +68,7 @@
           command="toggle-popover"
           aria-label="Open actions and backup menu"
         >
+          <span id="sync-mobile-dot" class="sync-status-dot" aria-hidden="true"></span>
           <span aria-hidden="true">⋯</span> Menu
         </button>
       </nav>
@@ -75,6 +80,11 @@
         <button type="button" class="icon-close-btn" commandfor="mobile-actions-popover" command="hide-popover" aria-label="Close menu">✕</button>
       </div>
       <div class="popover-menu-list">
+        <button type="button" class="popover-menu-item" data-mobile-action="cloud-sync">
+          <span id="sync-menu-dot" class="sync-status-dot" aria-hidden="true"></span>
+          <span id="sync-menu-label">Private GitHub Cloud Sync</span>
+        </button>
+        <hr class="popover-divider">
         <button type="button" class="popover-menu-item" data-mobile-action="add-car">
           <span aria-hidden="true">+</span> Add Vehicle
         </button>
@@ -728,6 +738,91 @@
     <div class="dialog-actions">
       <button type="button" class="btn btn-secondary" data-close-dialog="photo-dialog" autofocus>Close Preview</button>
     </div>
+  </dialog>
+
+  <!-- =====================================================================
+       MODAL 5: Private GitHub Cloud Sync (<dialog closedby="any">)
+       ===================================================================== -->
+  <dialog id="sync-dialog" closedby="any" aria-labelledby="sync-dialog-title">
+    <div class="dialog-header">
+      <h2 id="sync-dialog-title">Private GitHub Cloud Sync</h2>
+      <button type="button" class="icon-close-btn" data-close-dialog="sync-dialog" aria-label="Close cloud sync dialog">✕</button>
+    </div>
+
+    <form id="sync-form" method="POST" action="/api/sync" novalidate>
+      <div id="sync-status-banner" class="sync-status-banner" role="status" aria-live="polite">
+        Not connected to GitHub Cloud Sync yet. Enter your GitHub Personal Access Token below to enable automatic private backup across phones.
+      </div>
+
+      <div class="field">
+        <label for="sync-token-input">GitHub Personal Access Token (with Gist scope) *</label>
+        <span id="sync-token-hint" class="hint">Stored privately on your phone only. Never sent anywhere except api.github.com.</span>
+        <div class="password-input-row">
+          <input
+            type="password"
+            id="sync-token-input"
+            name="token"
+            required
+            minlength="10"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="ghp_... or gho_..."
+            aria-describedby="sync-token-hint"
+            autofocus
+          >
+          <button
+            type="button"
+            id="toggle-sync-token"
+            class="btn btn-sm btn-secondary"
+            aria-pressed="false"
+            aria-label="Show token"
+            aria-describedby="toggle-token-warning"
+          >
+            Show
+          </button>
+          <span id="toggle-token-warning" class="visually-hidden">Warning: this will display your token on the screen.</span>
+        </div>
+        <div class="error-msg"><span aria-hidden="true">⚠</span> Please enter a valid GitHub Personal Access Token.</div>
+      </div>
+
+      <div class="field">
+        <label for="sync-gist-id-input">Secret Gist ID (Optional)</label>
+        <span id="sync-gist-hint" class="hint">Leave blank on a new phone to automatically find your existing <code>garagelog-cloud-sync.json</code> secret Gist.</span>
+        <input
+          type="text"
+          id="sync-gist-id-input"
+          name="gistId"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="Auto-detected from your GitHub account"
+          aria-describedby="sync-gist-hint"
+        >
+      </div>
+
+      <div class="sync-quick-actions">
+        <button type="button" id="btn-sync-pull" class="btn btn-sm btn-secondary">
+          ↓ Pull from GitHub
+        </button>
+        <button type="button" id="btn-sync-push" class="btn btn-sm btn-secondary">
+          ↑ Push to GitHub
+        </button>
+        <button type="button" id="btn-copy-setup-link" class="btn btn-sm btn-secondary">
+          🔗 Copy New-Phone Setup Link
+        </button>
+        <button type="button" id="btn-sync-disconnect" class="btn btn-sm btn-danger">
+          Disconnect
+        </button>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close-dialog="sync-dialog">Close</button>
+        <button type="submit" id="sync-submit-btn" class="btn btn-primary">Save &amp; Sync Now</button>
+      </div>
+    </form>
   </dialog>
 
   <script type="module">

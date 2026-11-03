@@ -1329,3 +1329,69 @@ input.user-valid-fallback {
   color: var(--accent-hover);
   border: 1px solid rgba(56, 189, 248, 0.35);
 }
+
+/* =========================================================================
+   Private GitHub Cloud Sync UI
+   ========================================================================= */
+.sync-status-dot {
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.sync-status-dot.connected {
+  background-color: var(--status-on-track);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+}
+
+.sync-status-dot.syncing {
+  background-color: var(--status-due-soon);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
+}
+
+.sync-status-dot.error {
+  background-color: var(--status-overdue);
+}
+
+.sync-status-banner {
+  padding: 0.75rem 0.95rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.sync-status-banner.connected {
+  border-color: rgba(16, 185, 129, 0.45);
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #a7f3d0;
+}
+
+.sync-status-banner.error {
+  border-color: rgba(244, 63, 94, 0.45);
+  background-color: rgba(244, 63, 94, 0.12);
+  color: #fecdd3;
+}
+
+.password-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.password-input-row input {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.sync-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-block-start: 0.25rem;
+}
