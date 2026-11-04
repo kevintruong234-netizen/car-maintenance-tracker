@@ -1205,8 +1205,10 @@ dialog {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 0;
-  max-inline-size: min(680px, 94vw);
+  max-inline-size: min(680px, calc(100dvw - 1.25rem));
   inline-size: 100%;
+  box-sizing: border-box;
+  overflow-x: clip;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
 }
 
@@ -1221,14 +1223,18 @@ dialog[open] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.15rem 1.4rem;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
   border-block-end: 1px solid var(--border-subtle);
   background-color: var(--bg-elevated);
+  min-inline-size: 0;
 }
 
 .dialog-header h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
+  min-inline-size: 0;
+  overflow-wrap: break-word;
 }
 
 .icon-close-btn {
@@ -1238,6 +1244,7 @@ dialog[open] {
   border-radius: var(--radius-sm);
   inline-size: 38px;
   block-size: 38px;
+  flex-shrink: 0;
   cursor: pointer;
   font-size: 1rem;
 }
@@ -1248,28 +1255,34 @@ dialog[open] {
 }
 
 dialog form {
-  padding: 1.35rem 1.4rem;
+  padding: 1.1rem 1.15rem;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
 }
 
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: 0.65rem;
   padding-block-start: 0.75rem;
   border-block-start: 1px solid var(--border-subtle);
+  min-inline-size: 0;
 }
 
 #photo-dialog .dialog-actions {
-  padding: 1rem 1.4rem;
+  padding: 1rem 1.15rem;
 }
 
 .lightbox-figure {
   margin: 0;
-  padding: 1.25rem 1.4rem;
+  padding: 1.25rem 1.15rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1289,19 +1302,23 @@ dialog form {
    ========================================================================= */
 .form-row-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 @media (max-width: 600px) {
   .form-row-2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 .field {
   display: flex;
   flex-direction: column;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 /* Gestalt Proximity Rule from `forms`: label closer to input than between form groups */
@@ -1310,6 +1327,7 @@ dialog form {
   font-size: 0.9rem;
   color: var(--text-primary);
   margin-block-end: 0.15rem;
+  overflow-wrap: break-word;
 }
 
 .hint {
@@ -1317,6 +1335,7 @@ dialog form {
   color: var(--text-muted);
   font-size: 0.8rem;
   margin-block-end: 0.35rem;
+  overflow-wrap: break-word;
 }
 
 input,
@@ -1326,11 +1345,18 @@ textarea {
   font-size: 1rem; /* Prevents iOS zoom per `forms` guide */
   padding: 0.65rem 0.8rem;
   min-block-size: 48px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
   background-color: var(--bg-input);
   color: var(--text-primary);
   box-sizing: border-box;
+  text-overflow: ellipsis;
+}
+
+.field :is(input, select, textarea) {
+  inline-size: 100%;
 }
 
 @media (pointer: coarse) {
@@ -1381,8 +1407,11 @@ input.user-valid-fallback {
 .interval-fieldset {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 0.9rem;
   margin: 0;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
 }
 
 .interval-fieldset legend {
@@ -1390,6 +1419,8 @@ input.user-valid-fallback {
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--accent-hover);
+  max-inline-size: 100%;
+  overflow-wrap: break-word;
 }
 
 .highlight-completion-box {
