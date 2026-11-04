@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'garagelog-shell-v9';
+const CACHE_NAME = 'garagelog-shell-v10';
 const APP_SHELL_ASSETS = [
   './',
   './index.html',
@@ -48,20 +48,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate for static app shell assets
+  // Network-first with offline cache fallback for static app shell assets
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const networkFetch = fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && url.origin === self.location.origin) {
-            const cloned = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
-          }
-          return networkResponse;
-        })
-        .catch(() => cachedResponse || caches.match('./index.html'));
-
-      return cachedResponse || networkFetch;
-    })
+    fetch(request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && url.origin === self.location.origin) {
+          const cloned = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(request).then((cached) => cached || caches.match('./index.html')))
   );
 });

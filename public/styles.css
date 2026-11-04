@@ -1269,11 +1269,21 @@ dialog form {
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.65rem;
+  align-items: center;
+  justify-content: safe flex-end;
+  gap: 0.5rem;
   padding-block-start: 0.75rem;
   border-block-start: 1px solid var(--border-subtle);
   min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.dialog-actions .btn {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.86rem;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  flex-shrink: 1;
 }
 
 #photo-dialog .dialog-actions {
@@ -1355,7 +1365,7 @@ textarea {
   text-overflow: ellipsis;
 }
 
-.field :is(input, select, textarea) {
+.field :is(input:not([type="color"]), select, textarea) {
   inline-size: 100%;
 }
 
@@ -1371,6 +1381,8 @@ textarea {
 }
 
 input[type="color"] {
+  inline-size: 64px;
+  block-size: 44px;
   padding: 0.25rem;
   cursor: pointer;
 }
