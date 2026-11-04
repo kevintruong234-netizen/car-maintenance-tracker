@@ -28,7 +28,8 @@ class GarageDatabase {
         licensePlate TEXT DEFAULT '',
         currentMileage INTEGER NOT NULL DEFAULT 0,
         colorAccent TEXT DEFAULT '#0ea5e9',
-        notes TEXT DEFAULT ''
+        notes TEXT DEFAULT '',
+        partsJson TEXT DEFAULT '[]'
       );
 
       CREATE TABLE IF NOT EXISTS tasks (
@@ -61,6 +62,12 @@ class GarageDatabase {
       );
     `);
 
+    try {
+      this.db.exec("ALTER TABLE cars ADD COLUMN partsJson TEXT DEFAULT '[]'");
+    } catch {
+      // Column already exists
+    }
+
     const countRow = this.db.prepare('SELECT COUNT(*) AS count FROM cars').get();
     if (!countRow || countRow.count === 0) {
       this.replaceFullState(createInitialSeedData());
@@ -68,7 +75,17 @@ class GarageDatabase {
   }
 
   getState() {
-    const cars = this.db.prepare('SELECT * FROM cars ORDER BY year DESC, make ASC').all();
+    const rawCars = this.db.prepare('SELECT * FROM cars ORDER BY year DESC, make ASC').all();
+    const cars = rawCars.map((row) => {
+      let parts = [];
+      try {
+        parts = JSON.parse(row.partsJson || '[]');
+      } catch {
+        parts = [];
+      }
+      const { partsJson, ...rest } = row;
+      return { ...rest, parts };
+    });
     const tasks = this.db.prepare('SELECT * FROM tasks ORDER BY title ASC').all();
     const rawLogs = this.db.prepare('SELECT * FROM logs ORDER BY completedDate DESC, mileage DESC').all();
     const logs = rawLogs.map((row) => {
@@ -96,9 +113,21 @@ class GarageDatabase {
     const colorAccent = String(carInput.colorAccent || '#0ea5e9').trim();
     const notes = String(carInput.notes || '').trim();
 
+    const existing = this.db.prepare('SELECT partsJson FROM cars WHERE id = ?').get(id);
+    let existingParts = [];
+    if (existing && existing.partsJson) {
+      try {
+        existingParts = JSON.parse(existing.partsJson);
+      } catch {
+        existingParts = [];
+      }
+    }
+    const parts = Array.isArray(carInput.parts) ? carInput.parts : existingParts;
+    const partsJson = JSON.stringify(parts);
+
     this.db.prepare(`
-      INSERT INTO cars (id, year, make, model, nickname, vin, licensePlate, currentMileage, colorAccent, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO cars (id, year, make, model, nickname, vin, licensePlate, currentMileage, colorAccent, notes, partsJson)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         year = excluded.year,
         make = excluded.make,
@@ -108,10 +137,13 @@ class GarageDatabase {
         licensePlate = excluded.licensePlate,
         currentMileage = excluded.currentMileage,
         colorAccent = excluded.colorAccent,
-        notes = excluded.notes
-    `).run(id, year, make, model, nickname, vin, licensePlate, currentMileage, colorAccent, notes);
+        notes = excluded.notes,
+        partsJson = excluded.partsJson
+    `).run(id, year, make, model, nickname, vin, licensePlate, currentMileage, colorAccent, notes, partsJson);
 
-    return this.db.prepare('SELECT * FROM cars WHERE id = ?').get(id);
+    const saved = this.db.prepare('SELECT * FROM cars WHERE id = ?').get(id);
+    const { partsJson: _pj, ...rest } = saved;
+    return { ...rest, parts };
   }
 
   updateCarMileage(carId, mileage) {

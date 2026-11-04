@@ -213,9 +213,36 @@ test('PWA assets (manifest.webmanifest, sw.js, icon.svg) and Import JSON UI are 
   assert.ok(indexHtml.includes('id="btn-import-json"'));
   assert.ok(indexHtml.includes('id="sync-dialog"'));
   assert.ok(indexHtml.includes('id="sync-token-input"'));
+  assert.ok(indexHtml.includes('id="part-dialog"'));
+  assert.ok(indexHtml.includes('id="parts-section"'));
 
   const appJs = fs.readFileSync(path.join(publicDir, 'app.js'), 'utf8');
   assert.ok(appJs.includes('discoverOrCreateBackupGist'));
   assert.ok(appJs.includes('pullFromGitHubGist'));
   assert.ok(appJs.includes('pushToGitHubGist'));
+  assert.ok(appJs.includes('openPartDialog'));
+  assert.ok(appJs.includes('renderPartsSection'));
+});
+
+test('GarageDatabase persists per-vehicle parts and specifications and seeds 2014 Toyota Corolla S', () => {
+  const db = new GarageDatabase(':memory:');
+  const state = db.getState();
+  const corolla = state.cars.find((c) => c.id === 'car-pg28a2r5');
+  assert.ok(corolla, 'Should include 2014 Toyota Corolla S');
+  assert.equal(corolla.vin, '5YFBURHE6EP055308');
+  assert.equal(corolla.licensePlate, '7DSS008');
+  assert.ok(Array.isArray(corolla.parts) && corolla.parts.length >= 1);
+  assert.equal(corolla.parts[0].item, 'Engine Oil');
+  assert.equal(corolla.parts[0].spec, '0W-20 Full Synthetic (API SN/SP)');
+
+  // Add a new part to Corolla and verify it persists and survives odometer updates
+  const updatedParts = [
+    ...corolla.parts,
+    { id: 'part-test-wiper', item: 'Wiper Blades', spec: '26" Driver / 16" Passenger', notes: 'OEM SightLine' }
+  ];
+  db.addOrUpdateCar({ ...corolla, parts: updatedParts });
+  const afterUpdate = db.getState().cars.find((c) => c.id === 'car-pg28a2r5');
+  assert.ok(afterUpdate.parts.some((p) => p.id === 'part-test-wiper'));
+
+  db.close();
 });

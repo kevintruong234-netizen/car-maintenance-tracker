@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'garagelog-shell-v5';
+const CACHE_NAME = 'garagelog-shell-v6';
 const APP_SHELL_ASSETS = [
   './',
   './index.html',

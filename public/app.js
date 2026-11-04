@@ -693,6 +693,7 @@
     renderFleetSidebar();
     renderActiveCarPanel();
     renderTasksGrid();
+    renderPartsSection();
     renderHistoryTable();
   }
 
@@ -1154,6 +1155,93 @@
     });
   }
 
+  function renderPartsSection() {
+    const container = document.getElementById('parts-container');
+    if (!container) return;
+
+    const visibleCars =
+      appState.selectedCarId === 'all'
+        ? appState.cars
+        : appState.cars.filter((c) => c.id === appState.selectedCarId);
+
+    const rows = [];
+    for (const car of visibleCars) {
+      const parts = Array.isArray(car.parts) ? car.parts : [];
+      for (const part of parts) {
+        rows.push({ car, part });
+      }
+    }
+
+    if (rows.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:1rem;color:var(--text-muted);background:var(--bg-elevated);border-radius:var(--radius-sm);font-size:0.84rem;">
+          No part numbers or fluid specifications added for this vehicle yet. Tap <strong>+ Part / Spec</strong> to add one.
+        </div>
+      `;
+      return;
+    }
+
+    const showCarLabel = appState.selectedCarId === 'all' && appState.cars.length > 1;
+    const rowsHtml = rows
+      .map(({ car, part }) => {
+        return `
+          <tr class="note-row">
+            <th scope="row" class="note-cell-item">
+              <button
+                type="button"
+                class="note-cell-edit-btn"
+                data-edit-part="${escapeHtml(part.id)}"
+                data-part-car="${escapeHtml(car.id)}"
+              >
+                <span class="note-item-title">${escapeHtml(part.item)}</span>
+                ${showCarLabel ? `<span class="note-item-sub" style="padding-inline-start:0;">${escapeHtml(car.year)} ${escapeHtml(car.make)} ${escapeHtml(car.model)}</span>` : ''}
+              </button>
+            </th>
+            <td class="note-cell-spec">
+              <button
+                type="button"
+                class="note-cell-edit-btn"
+                data-edit-part="${escapeHtml(part.id)}"
+                data-part-car="${escapeHtml(car.id)}"
+              >
+                <span class="note-completed-val">${escapeHtml(part.spec)}</span>
+                ${part.notes ? `<span class="note-item-sub" style="padding-inline-start:0;">${escapeHtml(part.notes)}</span>` : ''}
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    container.innerHTML = `
+      <div tabindex="0" role="region" aria-labelledby="parts-heading" class="note-table-wrapper">
+        <table class="note-maint-table note-parts-table">
+          <thead>
+            <tr>
+              <th scope="col">Item</th>
+              <th scope="col">Specification / Part #</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.querySelectorAll('[data-edit-part]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const carId = btn.getAttribute('data-part-car');
+        const partId = btn.getAttribute('data-edit-part');
+        const car = getCarById(carId);
+        const part = car && Array.isArray(car.parts) ? car.parts.find((p) => p.id === partId) : null;
+        if (car && part) {
+          openPartDialog(car.id, part);
+        }
+      });
+    });
+  }
+
   function renderHistoryTable() {
     const tbody = document.getElementById('history-tbody');
     const query = appState.historySearch.trim().toLowerCase();
@@ -1381,6 +1469,47 @@
     dialog.showModal();
   }
 
+  function openPartDialog(preferredCarId = null, partToEdit = null) {
+    if (appState.cars.length === 0) {
+      openCarDialog();
+      return;
+    }
+
+    const dialog = document.getElementById('part-dialog');
+    const form = document.getElementById('part-form');
+    if (!dialog || !form) return;
+    form.reset();
+
+    const defaultCarId =
+      preferredCarId ||
+      (appState.selectedCarId !== 'all' ? appState.selectedCarId : appState.cars[0].id);
+
+    populateVehicleSelect(document.getElementById('part-car-id'), defaultCarId);
+
+    document.getElementById('part-dialog-title').textContent = partToEdit
+      ? `Edit Part / Spec: ${partToEdit.item}`
+      : 'Add Part / Specification';
+
+    document.getElementById('part-id').value = partToEdit ? partToEdit.id : '';
+    document.getElementById('part-item').value = partToEdit ? partToEdit.item || '' : '';
+    document.getElementById('part-spec').value = partToEdit ? partToEdit.spec || '' : '';
+    document.getElementById('part-notes').value = partToEdit ? partToEdit.notes || '' : '';
+    dialog.dataset.originCarId = partToEdit ? defaultCarId : '';
+
+    const deletePartBtn = document.getElementById('btn-modal-delete-part');
+    if (deletePartBtn) {
+      deletePartBtn.hidden = !partToEdit;
+      deletePartBtn.onclick = partToEdit
+        ? async () => {
+            await handleDeletePart(defaultCarId, partToEdit.id);
+            dialog.close();
+          }
+        : null;
+    }
+
+    dialog.showModal();
+  }
+
   function populateLinkedTaskSelect(carId, selectedTaskId = '') {
     const selectEl = document.getElementById('complete-task-select');
     const tasksForCar = appState.tasks.filter((t) => t.carId === carId);
@@ -1567,6 +1696,19 @@
     }
   }
 
+  async function handleDeletePart(carId, partId) {
+    const car = getCarById(carId);
+    if (!car) return;
+    const updatedParts = (Array.isArray(car.parts) ? car.parts : []).filter((p) => p.id !== partId);
+    car.parts = updatedParts;
+    if (appState.apiAvailable) {
+      await apiRequest('/api/cars', 'POST', car);
+    } else {
+      saveLocalState();
+      renderAll();
+    }
+  }
+
   async function handleDeleteLog(logId) {
     if (appState.apiAvailable) {
       await apiRequest(`/api/logs/${encodeURIComponent(logId)}`, 'DELETE');
@@ -1604,6 +1746,10 @@
     document.getElementById('btn-sidebar-add-car').addEventListener('click', () => openCarDialog());
     document.getElementById('btn-add-task').addEventListener('click', () => openTaskDialog());
     document.getElementById('btn-section-add-task').addEventListener('click', () => openTaskDialog());
+    const sectionAddPartBtn = document.getElementById('btn-section-add-part');
+    if (sectionAddPartBtn) {
+      sectionAddPartBtn.addEventListener('click', () => openPartDialog());
+    }
     document.getElementById('btn-log-service').addEventListener('click', () => openCompleteDialog());
     document.getElementById('btn-section-log-service').addEventListener('click', () => openCompleteDialog());
 
@@ -1795,6 +1941,8 @@
           openCarDialog();
         } else if (action === 'add-task') {
           openTaskDialog();
+        } else if (action === 'add-part') {
+          openPartDialog();
         } else if (action === 'log-service') {
           openCompleteDialog();
         } else if (action === 'export-json') {
@@ -2005,6 +2153,63 @@
 
       document.getElementById('task-dialog').close();
     });
+
+    // Form 2b: Save Part / Specification
+    const partForm = document.getElementById('part-form');
+    if (partForm) {
+      partForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!partForm.checkValidity()) {
+          partForm.reportValidity();
+          return;
+        }
+
+        const dialog = document.getElementById('part-dialog');
+        const originCarId = dialog?.dataset.originCarId || '';
+        const targetCarId = document.getElementById('part-car-id').value;
+        const partId =
+          document.getElementById('part-id').value ||
+          'part-' + Math.random().toString(36).slice(2, 10);
+        const partPayload = {
+          id: partId,
+          item: document.getElementById('part-item').value.trim(),
+          spec: document.getElementById('part-spec').value.trim(),
+          notes: document.getElementById('part-notes').value.trim()
+        };
+
+        // If user moved an existing part from one vehicle to another during edit
+        if (originCarId && originCarId !== targetCarId) {
+          const originCar = getCarById(originCarId);
+          if (originCar && Array.isArray(originCar.parts)) {
+            originCar.parts = originCar.parts.filter((p) => p.id !== partId);
+            if (appState.apiAvailable) {
+              await apiRequest('/api/cars', 'POST', originCar);
+            }
+          }
+        }
+
+        const targetCar = getCarById(targetCarId);
+        if (targetCar) {
+          const currentParts = Array.isArray(targetCar.parts) ? [...targetCar.parts] : [];
+          const existingIdx = currentParts.findIndex((p) => p.id === partId);
+          if (existingIdx >= 0) {
+            currentParts[existingIdx] = partPayload;
+          } else {
+            currentParts.push(partPayload);
+          }
+          targetCar.parts = currentParts;
+
+          if (appState.apiAvailable) {
+            await apiRequest('/api/cars', 'POST', targetCar);
+          } else {
+            saveLocalState();
+            renderAll();
+          }
+        }
+
+        dialog.close();
+      });
+    }
 
     // Form 3: Mark Task Complete / Save History Log
     document.getElementById('complete-form').addEventListener('submit', async (e) => {

@@ -224,25 +224,131 @@
         id: 'car-371tooqm',
         year: 2016,
         make: 'Mazda',
-        model: 'CX-5 2.5',
+        model: 'CX-5 Grand Touring',
         nickname: '',
         vin: 'JM3KE4DY5G0765059',
         licensePlate: '9RCW065',
         currentMileage: 107696,
         colorAccent: '#0ea5e9',
-        notes: '0W-20 full synthetic oil. Tire rotation: Rear forward, front cross (lug torque 108 ft-lbs).'
+        notes: '0W-20 full synthetic oil. Tire rotation: Rear forward, front cross (lug torque 108 ft-lbs).',
+        parts: [
+          {
+            id: 'part-cx5-oil',
+            item: 'Engine Oil',
+            spec: '0W-20 Full Synthetic (GF-5 / API SN/SP)',
+            notes: '4.8 quarts (4.5 L) with filter'
+          },
+          {
+            id: 'part-cx5-oil-filter',
+            item: 'Oil Filter',
+            spec: 'Mazda OEM PE01-14-302B (1WPE-14-302)',
+            notes: 'Drain plug crush washer 9956-41-400'
+          },
+          {
+            id: 'part-cx5-cabin-filter',
+            item: 'Cabin Air Filter',
+            spec: 'Mazda OEM KD45-61-J6X',
+            notes: ''
+          },
+          {
+            id: 'part-cx5-engine-filter',
+            item: 'Engine Air Filter',
+            spec: 'Mazda OEM PE07-13-3A0A',
+            notes: ''
+          },
+          {
+            id: 'part-cx5-spark-plugs',
+            item: 'Spark Plugs',
+            spec: 'Mazda PE5R-18-110 / NGK ILKAR7L11 (Iridium)',
+            notes: ''
+          },
+          {
+            id: 'part-cx5-atf',
+            item: 'Transmission Fluid',
+            spec: 'Mazda Original Oil ATF-FZ (Blue)',
+            notes: ''
+          },
+          {
+            id: 'part-cx5-diff',
+            item: 'Rear Diff / Transfer Case Fluid',
+            spec: 'Mazda Long Life Hypoid Gear Oil SG1 (80W-90 GL-5)',
+            notes: ''
+          },
+          {
+            id: 'part-cx5-coolant',
+            item: 'Coolant',
+            spec: 'Mazda FL22 Extended Life Coolant (55/45)',
+            notes: ''
+          },
+          {
+            id: 'part-cx5-brake-fluid',
+            item: 'Brake Fluid',
+            spec: 'DOT 3',
+            notes: ''
+          }
+        ]
       },
       {
-        id: 'car-miata-2018',
-        year: 2018,
-        make: 'Mazda',
-        model: 'MX-5 Miata Club',
-        nickname: 'Weekend Roadster',
-        vin: 'JM1NDAC78J0219403',
-        licensePlate: 'ND2ZOOM',
-        currentMileage: 58900,
-        colorAccent: '#f43f5e',
-        notes: 'Brembo/BBS package. Track day & canyon spec: DOT 4 brake fluid and 75W-90 GL-4 manual transmission fluid.'
+        id: 'car-pg28a2r5',
+        year: 2014,
+        make: 'Toyota',
+        model: 'Corolla S',
+        nickname: "Katie's Car",
+        vin: '5YFBURHE6EP055308',
+        licensePlate: '7DSS008',
+        currentMileage: 103000,
+        colorAccent: '#10b981',
+        notes: '0W-20 full synthetic oil. Tire rotation: front back / rear cross.',
+        parts: [
+          {
+            id: 'part-corolla-oil',
+            item: 'Engine Oil',
+            spec: '0W-20 Full Synthetic (API SN/SP)',
+            notes: '4.4 quarts (4.2 L) with filter'
+          },
+          {
+            id: 'part-corolla-oil-filter',
+            item: 'Oil Filter',
+            spec: 'Toyota OEM 04152-YZZA6',
+            notes: 'Cartridge filter • Drain plug washer 90430-12031'
+          },
+          {
+            id: 'part-corolla-cabin-filter',
+            item: 'Cabin Air Filter',
+            spec: 'Toyota OEM 87139-07010 / 87139-YZZ20',
+            notes: ''
+          },
+          {
+            id: 'part-corolla-engine-filter',
+            item: 'Engine Air Filter',
+            spec: 'Toyota OEM 17801-0T030 / 17801-21050',
+            notes: ''
+          },
+          {
+            id: 'part-corolla-spark-plugs',
+            item: 'Spark Plugs',
+            spec: 'Denso SC16HR11 / NGK ILKAR7B11 (Iridium)',
+            notes: 'Gap: 0.043 in (1.1 mm)'
+          },
+          {
+            id: 'part-corolla-cvt-fluid',
+            item: 'Transmission Fluid',
+            spec: 'Toyota Genuine CVT Fluid FE',
+            notes: ''
+          },
+          {
+            id: 'part-corolla-coolant',
+            item: 'Coolant',
+            spec: 'Toyota Super Long Life Coolant (Pink, 50/50)',
+            notes: ''
+          },
+          {
+            id: 'part-corolla-brake-fluid',
+            item: 'Brake Fluid',
+            spec: 'DOT 3',
+            notes: ''
+          }
+        ]
       }
     ];
 
@@ -254,9 +360,9 @@
         category: 'Engine',
         intervalMiles: 6000,
         intervalMonths: 0,
-        lastCompletedDate: '2026-07-03',
+        lastCompletedDate: null,
         lastCompletedMileage: 103613,
-        baselineDate: '2026-07-03',
+        baselineDate: null,
         baselineMileage: 103613,
         notes: 'Full synthetic 0W-20 oil and OEM oil filter + crush washer.',
         completionCount: 1
@@ -268,9 +374,9 @@
         category: 'Engine',
         intervalMiles: 6000,
         intervalMonths: 0,
-        lastCompletedDate: '2026-07-03',
+        lastCompletedDate: null,
         lastCompletedMileage: 103613,
-        baselineDate: '2026-07-03',
+        baselineDate: null,
         baselineMileage: 103613,
         notes: '',
         completionCount: 1
@@ -282,9 +388,9 @@
         category: 'Tires & Wheels',
         intervalMiles: 6000,
         intervalMonths: 0,
-        lastCompletedDate: '2026-07-03',
+        lastCompletedDate: null,
         lastCompletedMileage: 103613,
-        baselineDate: '2026-07-03',
+        baselineDate: null,
         baselineMileage: 103613,
         notes: '(Rear forward, front cross) • Torque lug nuts 108 ft-lbs',
         completionCount: 1
@@ -348,7 +454,7 @@
       {
         id: 'task-cx5-rear-diff',
         carId: 'car-371tooqm',
-        title: 'Rear Differential',
+        title: 'Rear Differential Fluid',
         category: 'Drivetrain',
         intervalMiles: 60000,
         intervalMonths: 0,
@@ -362,7 +468,7 @@
       {
         id: 'task-cx5-transfer-case',
         carId: 'car-371tooqm',
-        title: 'Transfer Case',
+        title: 'Transfer Case Fluid',
         category: 'Drivetrain',
         intervalMiles: 60000,
         intervalMonths: 0,
@@ -376,7 +482,7 @@
       {
         id: 'task-cx5-coolant',
         carId: 'car-371tooqm',
-        title: 'Coolant',
+        title: 'Coolant Drain and Fill',
         category: 'Cooling',
         intervalMiles: 120000,
         intervalMonths: 0,
@@ -416,18 +522,144 @@
         completionCount: 1
       },
       {
-        id: 'task-miata-oil',
-        carId: 'car-miata-2018',
-        title: 'Synthetic Oil & Filter Service',
+        id: 'task-corolla-oil',
+        carId: 'car-pg28a2r5',
+        title: 'Engine Oil/filter',
         category: 'Engine',
-        intervalMiles: 4000,
-        intervalMonths: 6,
-        lastCompletedDate: '2026-07-19',
-        lastCompletedMileage: 56400,
-        baselineDate: '2026-07-19',
-        baselineMileage: 56400,
-        notes: 'Pennzoil Ultra Platinum 5W-30 (4.5 qt) + OEM Mazda PE01-14-302B filter.',
-        completionCount: 14
+        intervalMiles: 6500,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 95395,
+        baselineDate: null,
+        baselineMileage: 95395,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-corolla-fuel',
+        carId: 'car-pg28a2r5',
+        title: 'Fuel System Clean',
+        category: 'Engine',
+        intervalMiles: 6500,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 95395,
+        baselineDate: null,
+        baselineMileage: 95395,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-corolla-tires',
+        carId: 'car-pg28a2r5',
+        title: 'Tire Rotation',
+        category: 'Tires & Wheels',
+        intervalMiles: 6500,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 95395,
+        baselineDate: null,
+        baselineMileage: 95395,
+        notes: '(front back/ rear cross)',
+        completionCount: 1
+      },
+      {
+        id: 'task-corolla-cabin-filter',
+        carId: 'car-pg28a2r5',
+        title: 'Cabin Air Filter',
+        category: 'HVAC',
+        intervalMiles: 15000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 95395,
+        baselineDate: null,
+        baselineMileage: 95395,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-corolla-engine-filter',
+        carId: 'car-pg28a2r5',
+        title: 'Engine Air Filter',
+        category: 'Engine',
+        intervalMiles: 30000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 95395,
+        baselineDate: null,
+        baselineMileage: 95395,
+        notes: '',
+        completionCount: 1
+      },
+      {
+        id: 'task-corolla-brakes',
+        carId: 'car-pg28a2r5',
+        title: 'Brake Pads/rotors',
+        category: 'Brakes',
+        intervalMiles: 36000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: null,
+        baselineDate: null,
+        baselineMileage: null,
+        notes: '',
+        completionCount: 0
+      },
+      {
+        id: 'task-corolla-trans-fluid',
+        carId: 'car-pg28a2r5',
+        title: 'Transmission fluid',
+        category: 'Drivetrain',
+        intervalMiles: 80000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: null,
+        baselineDate: null,
+        baselineMileage: null,
+        notes: '',
+        completionCount: 0
+      },
+      {
+        id: 'task-corolla-coolant',
+        carId: 'car-pg28a2r5',
+        title: 'Coolant',
+        category: 'Cooling',
+        intervalMiles: 100000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: null,
+        baselineDate: null,
+        baselineMileage: null,
+        notes: '',
+        completionCount: 0
+      },
+      {
+        id: 'task-corolla-brake-fluid',
+        carId: 'car-pg28a2r5',
+        title: 'Brake Fluid',
+        category: 'Brakes',
+        intervalMiles: 0,
+        intervalMonths: 36,
+        lastCompletedDate: null,
+        lastCompletedMileage: null,
+        baselineDate: null,
+        baselineMileage: null,
+        notes: '',
+        completionCount: 0
+      },
+      {
+        id: 'task-corolla-spark-plugs',
+        carId: 'car-pg28a2r5',
+        title: 'Spark Plugs',
+        category: 'Ignition',
+        intervalMiles: 100000,
+        intervalMonths: 0,
+        lastCompletedDate: null,
+        lastCompletedMileage: 86952,
+        baselineDate: null,
+        baselineMileage: 86952,
+        notes: '',
+        completionCount: 1
       }
     ];
 
@@ -456,19 +688,6 @@
         cost: 340.0,
         performedBy: 'DIY Garage',
         notes: 'Replaced brake pads and rotors at 92,628 miles (Dec 2025).',
-        photos: []
-      },
-      {
-        id: 'log-miata-1',
-        carId: 'car-miata-2018',
-        taskId: 'task-miata-oil',
-        taskTitle: 'Synthetic Oil & Filter Service',
-        category: 'Engine',
-        completedDate: '2026-07-19',
-        mileage: 56400,
-        cost: 54.85,
-        performedBy: 'DIY Garage',
-        notes: 'Drained warm oil, installed new aluminum crush washer (9956-41-400) torqued to 25 ft-lbs, and filled 4.5 quarts 5W-30 synthetic.',
         photos: []
       }
     ];

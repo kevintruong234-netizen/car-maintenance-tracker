@@ -91,6 +91,9 @@
         <button type="button" class="popover-menu-item" data-mobile-action="add-task">
           <span aria-hidden="true">↻</span> Add Recurring Task
         </button>
+        <button type="button" class="popover-menu-item" data-mobile-action="add-part">
+          <span aria-hidden="true">⚙</span> Add Part / Specification
+        </button>
         <hr class="popover-divider">
         <button type="button" class="popover-menu-item" data-mobile-action="export-json">
           <span aria-hidden="true">↓</span> Export Backup JSON
@@ -155,6 +158,18 @@
 
           <div id="tasks-container" class="tasks-container">
             <!-- Populated by app.js as a compact 3-column table or cards -->
+          </div>
+        </section>
+
+        <!-- Vehicle Parts & Specifications Table (Apple-Notes 2-Column Table: Item | Specification / Part #) -->
+        <section id="parts-section" aria-labelledby="parts-heading" class="panel-section note-section">
+          <div class="section-header-row compact-header-row">
+            <h2 id="parts-heading" class="note-section-title">Parts &amp; Specifications</h2>
+            <button type="button" id="btn-section-add-part" class="btn btn-sm btn-secondary">+ Part / Spec</button>
+          </div>
+
+          <div id="parts-container" class="parts-container">
+            <!-- Populated by app.js as a compact 2-column table (Item | Specification / Part #) -->
           </div>
         </section>
 
@@ -820,6 +835,98 @@
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" data-close-dialog="sync-dialog">Close</button>
         <button type="submit" id="sync-submit-btn" class="btn btn-primary">Save &amp; Sync Now</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- =====================================================================
+       MODAL 6: Add / Edit Vehicle Part & Specification (<dialog closedby="any">)
+       ===================================================================== -->
+  <dialog id="part-dialog" closedby="any" aria-labelledby="part-dialog-title">
+    <div class="dialog-header">
+      <h2 id="part-dialog-title">Add Part / Specification</h2>
+      <button type="button" class="icon-close-btn" data-close-dialog="part-dialog" aria-label="Close part dialog">✕</button>
+    </div>
+
+    <form id="part-form" method="POST" action="/api/cars" novalidate>
+      <input type="hidden" id="part-id" name="id">
+
+      <div class="field">
+        <label for="part-car-id">Vehicle *</label>
+        <span id="part-car-hint" class="hint">Which vehicle is this part or specification for?</span>
+        <select id="part-car-id" name="carId" required aria-describedby="part-car-hint"></select>
+        <div class="error-msg"><span aria-hidden="true">⚠</span> Please select a vehicle.</div>
+      </div>
+
+      <div class="field">
+        <label for="part-item">Item *</label>
+        <span id="part-item-hint" class="hint">e.g., Engine Oil, Oil Filter, Cabin Air Filter, Spark Plugs, Wiper Blades</span>
+        <input
+          type="text"
+          id="part-item"
+          name="item"
+          list="part-item-datalist"
+          required
+          maxlength="80"
+          placeholder="e.g., Engine Oil"
+          aria-describedby="part-item-hint"
+          autofocus
+        >
+        <datalist id="part-item-datalist">
+          <option value="Engine Oil"></option>
+          <option value="Oil Filter"></option>
+          <option value="Drain Plug Crush Washer"></option>
+          <option value="Cabin Air Filter"></option>
+          <option value="Engine Air Filter"></option>
+          <option value="Spark Plugs"></option>
+          <option value="Transmission Fluid"></option>
+          <option value="Rear Diff / Transfer Case Fluid"></option>
+          <option value="Coolant"></option>
+          <option value="Brake Fluid"></option>
+          <option value="Brake Pads (Front / Rear)"></option>
+          <option value="Wiper Blades (Front / Rear)"></option>
+          <option value="12V Battery Group Size"></option>
+          <option value="Tire Size &amp; Cold PSI"></option>
+          <option value="Lug Nut Torque"></option>
+        </datalist>
+        <div class="error-msg"><span aria-hidden="true">⚠</span> Please enter an item name.</div>
+      </div>
+
+      <div class="field">
+        <label for="part-spec">Specification / Part # *</label>
+        <span id="part-spec-hint" class="hint">e.g., 0W-20 Full Synthetic (API SN/SP), Toyota 04152-YZZA6</span>
+        <input
+          type="text"
+          id="part-spec"
+          name="spec"
+          required
+          maxlength="140"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="e.g., 0W-20 Full Synthetic (API SN/SP)"
+          aria-describedby="part-spec-hint"
+        >
+        <div class="error-msg"><span aria-hidden="true">⚠</span> Please enter a specification or part number.</div>
+      </div>
+
+      <div class="field">
+        <label for="part-notes">Notes / Capacity / Torque (Optional)</label>
+        <span id="part-notes-hint" class="hint">Optional capacity, gap, torque spec, or purchase notes</span>
+        <input
+          type="text"
+          id="part-notes"
+          name="notes"
+          maxlength="160"
+          placeholder="e.g., 4.4 quarts with filter • Crush washer 90430-12031"
+          aria-describedby="part-notes-hint"
+        >
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="btn-modal-delete-part" class="btn btn-danger" style="margin-inline-end:auto;" hidden>Delete Part</button>
+        <button type="button" class="btn btn-ghost" data-close-dialog="part-dialog">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Part Info</button>
       </div>
     </form>
   </dialog>
