@@ -1,12 +1,14 @@
 'use strict';
 
-const CACHE_NAME = 'garagelog-shell-v6';
+const CACHE_NAME = 'garagelog-shell-v7';
 const APP_SHELL_ASSETS = [
   './',
   './index.html',
   './styles.css',
   './maintenance-engine.js',
   './app.js',
+  './firebase.js',
+  './firebase-auth.js',
   './manifest.webmanifest',
   './icon.svg'
 ];

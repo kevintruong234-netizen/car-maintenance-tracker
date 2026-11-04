@@ -1579,3 +1579,112 @@ input.user-valid-fallback {
   gap: 0.5rem;
   padding-block-start: 0.25rem;
 }
+
+/* =========================================================================
+   Google Authentication Lock Screen Gate
+   ========================================================================= */
+[hidden] {
+  display: none !important;
+}
+
+.auth-gate {
+  min-block-size: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem max(1rem, env(safe-area-inset-right, 0px)) max(1.5rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  background: radial-gradient(circle at 50% 15%, rgba(14, 165, 233, 0.14), transparent 55%), var(--bg-canvas);
+}
+
+.auth-gate-card {
+  inline-size: min(420px, 100%);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.85rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-gate-logo {
+  inline-size: 52px;
+  block-size: 52px;
+  border-radius: 14px;
+}
+
+.auth-lock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background-color: rgba(14, 165, 233, 0.12);
+  color: var(--accent-hover);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.auth-gate-title {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.auth-gate-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.btn-google-signin {
+  inline-size: 100%;
+  min-block-size: 46px;
+  margin-block-start: 0.35rem;
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 140ms ease, transform 100ms ease;
+}
+
+.btn-google-signin:hover {
+  background-color: #f1f5f9;
+}
+
+.btn-google-signin:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.auth-gate-status {
+  inline-size: 100%;
+  margin-block-start: 0.25rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.auth-gate-status[data-state="error"] {
+  border-color: rgba(244, 63, 94, 0.5);
+  background-color: rgba(244, 63, 94, 0.14);
+  color: #fecdd3;
+}

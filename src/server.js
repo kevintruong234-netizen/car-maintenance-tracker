@@ -44,9 +44,16 @@ function readJsonBody(req, maxBytes = 25 * 1024 * 1024) {
   });
 }
 
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), geolocation=(), microphone=(), focus-without-user-activation=()'
+};
+
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
+    ...SECURITY_HEADERS,
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store'
   });
@@ -146,7 +153,7 @@ function createGarageServer({ dbPath } = {}) {
       if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isFile()) {
         const ext = path.extname(resolvedPath).toLowerCase();
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-        res.writeHead(200, { 'Content-Type': contentType });
+        res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': contentType });
         fs.createReadStream(resolvedPath).pipe(res);
         return;
       }

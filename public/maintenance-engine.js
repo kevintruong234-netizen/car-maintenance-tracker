@@ -216,137 +216,47 @@
   }
 
   /**
-   * Produces rich initial demo data with 2 vehicles, recurring tasks, and maintenance history with notes & photos.
+   * Produces anonymized demo data for local/reset testing (zero personal vehicle data in public repo).
    */
   function createInitialSeedData() {
     const cars = [
       {
-        id: 'car-371tooqm',
-        year: 2016,
-        make: 'Mazda',
-        model: 'CX-5 Grand Touring',
-        nickname: '',
-        vin: 'JM3KE4DY5G0765059',
-        licensePlate: '9RCW065',
-        currentMileage: 107696,
+        id: 'car-demo-1',
+        year: 2022,
+        make: 'Toyota',
+        model: 'RAV4 Hybrid',
+        nickname: 'Daily Driver',
+        vin: '2T3RWRFV0NW000001',
+        licensePlate: 'DEMO001',
+        currentMileage: 34500,
         colorAccent: '#0ea5e9',
-        notes: '0W-20 full synthetic oil. Tire rotation: Rear forward, front cross (lug torque 108 ft-lbs).',
+        notes: '0W-16 full synthetic oil.',
         parts: [
           {
-            id: 'part-cx5-oil',
+            id: 'part-demo-oil',
             item: 'Engine Oil',
-            spec: '0W-20 Full Synthetic (GF-5 / API SN/SP)',
-            notes: '4.8 quarts (4.5 L) with filter'
-          },
-          {
-            id: 'part-cx5-oil-filter',
-            item: 'Oil Filter',
-            spec: 'Mazda OEM PE01-14-302B (1WPE-14-302)',
-            notes: 'Drain plug crush washer 9956-41-400'
-          },
-          {
-            id: 'part-cx5-cabin-filter',
-            item: 'Cabin Air Filter',
-            spec: 'Mazda OEM KD45-61-J6X',
-            notes: ''
-          },
-          {
-            id: 'part-cx5-engine-filter',
-            item: 'Engine Air Filter',
-            spec: 'Mazda OEM PE07-13-3A0A',
-            notes: ''
-          },
-          {
-            id: 'part-cx5-spark-plugs',
-            item: 'Spark Plugs',
-            spec: 'Mazda PE5R-18-110 / NGK ILKAR7L11 (Iridium)',
-            notes: ''
-          },
-          {
-            id: 'part-cx5-atf',
-            item: 'Transmission Fluid',
-            spec: 'Mazda Original Oil ATF-FZ (Blue)',
-            notes: ''
-          },
-          {
-            id: 'part-cx5-diff',
-            item: 'Rear Diff / Transfer Case Fluid',
-            spec: 'Mazda Long Life Hypoid Gear Oil SG1 (80W-90 GL-5)',
-            notes: ''
-          },
-          {
-            id: 'part-cx5-coolant',
-            item: 'Coolant',
-            spec: 'Mazda FL22 Extended Life Coolant (55/45)',
-            notes: ''
-          },
-          {
-            id: 'part-cx5-brake-fluid',
-            item: 'Brake Fluid',
-            spec: 'DOT 3',
-            notes: ''
+            spec: '0W-16 Full Synthetic (API SP)',
+            notes: '4.8 quarts with filter'
           }
         ]
       },
       {
-        id: 'car-pg28a2r5',
-        year: 2014,
-        make: 'Toyota',
-        model: 'Corolla S',
-        nickname: "Katie's Car",
-        vin: '5YFBURHE6EP055308',
-        licensePlate: '7DSS008',
-        currentMileage: 103000,
+        id: 'car-demo-2',
+        year: 2019,
+        make: 'Honda',
+        model: 'Civic Sport',
+        nickname: 'Commuter',
+        vin: '19XFC2F80KE000002',
+        licensePlate: 'DEMO002',
+        currentMileage: 62100,
         colorAccent: '#10b981',
-        notes: '0W-20 full synthetic oil. Tire rotation: front back / rear cross.',
+        notes: '0W-20 full synthetic oil.',
         parts: [
           {
-            id: 'part-corolla-oil',
+            id: 'part-demo-civic-oil',
             item: 'Engine Oil',
             spec: '0W-20 Full Synthetic (API SN/SP)',
-            notes: '4.4 quarts (4.2 L) with filter'
-          },
-          {
-            id: 'part-corolla-oil-filter',
-            item: 'Oil Filter',
-            spec: 'Toyota OEM 04152-YZZA6',
-            notes: 'Cartridge filter • Drain plug washer 90430-12031'
-          },
-          {
-            id: 'part-corolla-cabin-filter',
-            item: 'Cabin Air Filter',
-            spec: 'Toyota OEM 87139-07010 / 87139-YZZ20',
-            notes: ''
-          },
-          {
-            id: 'part-corolla-engine-filter',
-            item: 'Engine Air Filter',
-            spec: 'Toyota OEM 17801-0T030 / 17801-21050',
-            notes: ''
-          },
-          {
-            id: 'part-corolla-spark-plugs',
-            item: 'Spark Plugs',
-            spec: 'Denso SC16HR11 / NGK ILKAR7B11 (Iridium)',
-            notes: 'Gap: 0.043 in (1.1 mm)'
-          },
-          {
-            id: 'part-corolla-cvt-fluid',
-            item: 'Transmission Fluid',
-            spec: 'Toyota Genuine CVT Fluid FE',
-            notes: ''
-          },
-          {
-            id: 'part-corolla-coolant',
-            item: 'Coolant',
-            spec: 'Toyota Super Long Life Coolant (Pink, 50/50)',
-            notes: ''
-          },
-          {
-            id: 'part-corolla-brake-fluid',
-            item: 'Brake Fluid',
-            spec: 'DOT 3',
-            notes: ''
+            notes: '3.7 quarts with filter'
           }
         ]
       }
@@ -354,340 +264,47 @@
 
     const tasks = [
       {
-        id: 'task-18tyc2gm',
-        carId: 'car-371tooqm',
+        id: 'task-demo-oil',
+        carId: 'car-demo-1',
         title: 'Engine Oil/filter',
         category: 'Engine',
-        intervalMiles: 6000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 103613,
-        baselineDate: null,
-        baselineMileage: 103613,
-        notes: 'Full synthetic 0W-20 oil and OEM oil filter + crush washer.',
+        intervalMiles: 5000,
+        intervalMonths: 6,
+        lastCompletedDate: '2026-06-15',
+        lastCompletedMileage: 30000,
+        baselineDate: '2026-06-15',
+        baselineMileage: 30000,
+        notes: 'Full synthetic oil and OEM filter.',
         completionCount: 1
       },
       {
-        id: 'task-cx5-fuel-cleaner',
-        carId: 'car-371tooqm',
-        title: 'Fuel Cleaner',
-        category: 'Engine',
-        intervalMiles: 6000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 103613,
-        baselineDate: null,
-        baselineMileage: 103613,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-is5pxrz7',
-        carId: 'car-371tooqm',
+        id: 'task-demo-tires',
+        carId: 'car-demo-2',
         title: 'Tire Rotation',
         category: 'Tires & Wheels',
         intervalMiles: 6000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 103613,
-        baselineDate: null,
-        baselineMileage: 103613,
-        notes: '(Rear forward, front cross) • Torque lug nuts 108 ft-lbs',
-        completionCount: 1
-      },
-      {
-        id: 'task-cx5-cabin-filter',
-        carId: 'car-371tooqm',
-        title: 'Cabin Air Filter',
-        category: 'HVAC',
-        intervalMiles: 15000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 79000,
-        baselineDate: null,
-        baselineMileage: 79000,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-cx5-engine-filter',
-        carId: 'car-371tooqm',
-        title: 'Engine Air Filter',
-        category: 'Engine',
-        intervalMiles: 25000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 79000,
-        baselineDate: null,
-        baselineMileage: 79000,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-cx5-brakes',
-        carId: 'car-371tooqm',
-        title: 'Brake Pads/rotors',
-        category: 'Brakes',
-        intervalMiles: 36000,
-        intervalMonths: 0,
-        lastCompletedDate: '2025-12-01',
-        lastCompletedMileage: 92628,
-        baselineDate: '2025-12-01',
-        baselineMileage: 92628,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-cx5-brake-fluid',
-        carId: 'car-371tooqm',
-        title: 'Brake Fluid',
-        category: 'Brakes',
-        intervalMiles: 0,
-        intervalMonths: 36,
-        lastCompletedDate: null,
-        lastCompletedMileage: null,
-        baselineDate: null,
-        baselineMileage: null,
-        notes: '',
-        completionCount: 0
-      },
-      {
-        id: 'task-cx5-rear-diff',
-        carId: 'car-371tooqm',
-        title: 'Rear Differential Fluid',
-        category: 'Drivetrain',
-        intervalMiles: 60000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 98805,
-        baselineDate: null,
-        baselineMileage: 98805,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-cx5-transfer-case',
-        carId: 'car-371tooqm',
-        title: 'Transfer Case Fluid',
-        category: 'Drivetrain',
-        intervalMiles: 60000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 98805,
-        baselineDate: null,
-        baselineMileage: 98805,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-cx5-coolant',
-        carId: 'car-371tooqm',
-        title: 'Coolant Drain and Fill',
-        category: 'Cooling',
-        intervalMiles: 120000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: null,
-        baselineDate: null,
-        baselineMileage: null,
-        notes: '',
-        completionCount: 0
-      },
-      {
-        id: 'task-cx5-trans-fluid',
-        carId: 'car-371tooqm',
-        title: 'Transmission fluid',
-        category: 'Drivetrain',
-        intervalMiles: 75000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: null,
-        baselineDate: null,
-        baselineMileage: null,
-        notes: '',
-        completionCount: 0
-      },
-      {
-        id: 'task-cx5-spark-plugs',
-        carId: 'car-371tooqm',
-        title: 'Spark Plugs',
-        category: 'Ignition',
-        intervalMiles: 75000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 84500,
-        baselineDate: null,
-        baselineMileage: 84500,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-corolla-oil',
-        carId: 'car-pg28a2r5',
-        title: 'Engine Oil/filter',
-        category: 'Engine',
-        intervalMiles: 6500,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 95395,
-        baselineDate: null,
-        baselineMileage: 95395,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-corolla-fuel',
-        carId: 'car-pg28a2r5',
-        title: 'Fuel System Clean',
-        category: 'Engine',
-        intervalMiles: 6500,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 95395,
-        baselineDate: null,
-        baselineMileage: 95395,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-corolla-tires',
-        carId: 'car-pg28a2r5',
-        title: 'Tire Rotation',
-        category: 'Tires & Wheels',
-        intervalMiles: 6500,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 95395,
-        baselineDate: null,
-        baselineMileage: 95395,
-        notes: '(front back/ rear cross)',
-        completionCount: 1
-      },
-      {
-        id: 'task-corolla-cabin-filter',
-        carId: 'car-pg28a2r5',
-        title: 'Cabin Air Filter',
-        category: 'HVAC',
-        intervalMiles: 15000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 95395,
-        baselineDate: null,
-        baselineMileage: 95395,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-corolla-engine-filter',
-        carId: 'car-pg28a2r5',
-        title: 'Engine Air Filter',
-        category: 'Engine',
-        intervalMiles: 30000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 95395,
-        baselineDate: null,
-        baselineMileage: 95395,
-        notes: '',
-        completionCount: 1
-      },
-      {
-        id: 'task-corolla-brakes',
-        carId: 'car-pg28a2r5',
-        title: 'Brake Pads/rotors',
-        category: 'Brakes',
-        intervalMiles: 36000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: null,
-        baselineDate: null,
-        baselineMileage: null,
-        notes: '',
-        completionCount: 0
-      },
-      {
-        id: 'task-corolla-trans-fluid',
-        carId: 'car-pg28a2r5',
-        title: 'Transmission fluid',
-        category: 'Drivetrain',
-        intervalMiles: 80000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: null,
-        baselineDate: null,
-        baselineMileage: null,
-        notes: '',
-        completionCount: 0
-      },
-      {
-        id: 'task-corolla-coolant',
-        carId: 'car-pg28a2r5',
-        title: 'Coolant',
-        category: 'Cooling',
-        intervalMiles: 100000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: null,
-        baselineDate: null,
-        baselineMileage: null,
-        notes: '',
-        completionCount: 0
-      },
-      {
-        id: 'task-corolla-brake-fluid',
-        carId: 'car-pg28a2r5',
-        title: 'Brake Fluid',
-        category: 'Brakes',
-        intervalMiles: 0,
-        intervalMonths: 36,
-        lastCompletedDate: null,
-        lastCompletedMileage: null,
-        baselineDate: null,
-        baselineMileage: null,
-        notes: '',
-        completionCount: 0
-      },
-      {
-        id: 'task-corolla-spark-plugs',
-        carId: 'car-pg28a2r5',
-        title: 'Spark Plugs',
-        category: 'Ignition',
-        intervalMiles: 100000,
-        intervalMonths: 0,
-        lastCompletedDate: null,
-        lastCompletedMileage: 86952,
-        baselineDate: null,
-        baselineMileage: 86952,
-        notes: '',
+        intervalMonths: 6,
+        lastCompletedDate: '2026-05-10',
+        lastCompletedMileage: 58000,
+        baselineDate: '2026-05-10',
+        baselineMileage: 58000,
+        notes: 'Rotate front-to-back.',
         completionCount: 1
       }
     ];
 
     const logs = [
       {
-        id: 'log-cx5-1',
-        carId: 'car-371tooqm',
-        taskId: 'task-18tyc2gm',
+        id: 'log-demo-1',
+        carId: 'car-demo-1',
+        taskId: 'task-demo-oil',
         taskTitle: 'Engine Oil/filter',
         category: 'Engine',
-        completedDate: '2026-07-03',
-        mileage: 103613,
-        cost: 48.0,
+        completedDate: '2026-06-15',
+        mileage: 30000,
+        cost: 45.0,
         performedBy: 'DIY Garage',
-        notes: 'Full synthetic 0W-20 oil + OEM oil filter, fuel cleaner, and tire rotation (rear forward, front cross).',
-        photos: []
-      },
-      {
-        id: 'log-cx5-2',
-        carId: 'car-371tooqm',
-        taskId: 'task-cx5-brakes',
-        taskTitle: 'Brake Pads/rotors',
-        category: 'Brakes',
-        completedDate: '2025-12-01',
-        mileage: 92628,
-        cost: 340.0,
-        performedBy: 'DIY Garage',
-        notes: 'Replaced brake pads and rotors at 92,628 miles (Dec 2025).',
+        notes: 'Full synthetic oil + OEM filter.',
         photos: []
       }
     ];

@@ -12,9 +12,49 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js"
+      }
+    }
+  </script>
 </head>
 <body>
-  <div class="app-shell">
+  <!-- Google Sign-In Lock Screen (Locks entire app exclusively to kevintruong234@gmail.com) -->
+  <section id="auth-gate" class="auth-gate" aria-labelledby="auth-gate-title">
+    <div class="auth-gate-card">
+      <div class="brand-logo auth-gate-logo" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/>
+          <circle cx="6.5" cy="16.5" r="2.5"/>
+          <circle cx="16.5" cy="16.5" r="2.5"/>
+        </svg>
+      </div>
+      <span class="auth-lock-pill">🔒 Private Garage • Owner Only</span>
+      <h1 id="auth-gate-title" class="auth-gate-title">GarageLog</h1>
+      <p class="auth-gate-subtitle">
+        Sign in with your authorized Google account to unlock your vehicles, maintenance schedules, and parts specifications.
+      </p>
+
+      <button type="button" id="btn-google-signin" class="btn btn-google-signin">
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        <span>Sign in with Google</span>
+      </button>
+
+      <div id="auth-gate-status" class="auth-gate-status" role="status" aria-live="polite" data-state="info">
+        Checking authentication session…
+      </div>
+    </div>
+  </section>
+
+  <div class="app-shell" data-auth-protected hidden inert>
   <header class="app-header">
     <div class="header-inner">
       <div class="brand-group">
@@ -51,6 +91,9 @@
           </button>
           <button type="button" id="btn-reset-demo" class="btn btn-sm btn-ghost" aria-label="Reset demo data">
             Reset Demo
+          </button>
+          <button type="button" id="btn-auth-signout" class="btn btn-sm btn-ghost" aria-label="Sign out of Google account">
+            Sign Out
           </button>
         </div>
 
@@ -104,6 +147,10 @@
         <hr class="popover-divider">
         <button type="button" class="popover-menu-item popover-menu-danger" data-mobile-action="reset-demo">
           <span aria-hidden="true">↺</span> Reset Demo Data
+        </button>
+        <hr class="popover-divider">
+        <button type="button" class="popover-menu-item" data-mobile-action="sign-out">
+          <span aria-hidden="true">⎋</span> Sign Out (<span id="auth-user-email">kevintruong234@gmail.com</span>)
         </button>
       </div>
     </div>
@@ -254,7 +301,7 @@
   </div>
 
   <!-- Mobile Bottom Quick-Navigation Bar -->
-  <nav class="mobile-bottom-nav" aria-label="Mobile quick navigation">
+  <nav class="mobile-bottom-nav" aria-label="Mobile quick navigation" data-auth-protected hidden inert>
     <a href="#fleet-section" class="bottom-nav-item">
       <span aria-hidden="true">🚗</span>
       <span>Vehicles</span>
@@ -941,5 +988,6 @@
   </script>
   <script src="maintenance-engine.js"></script>
   <script src="app.js"></script>
+  <script type="module" src="firebase-auth.js"></script>
 </body>
 </html>

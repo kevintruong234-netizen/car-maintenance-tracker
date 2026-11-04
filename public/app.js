@@ -2283,11 +2283,29 @@
     }
   }
 
+  let hasLoadedForSession = false;
+
+  window.GarageLogApp = {
+    async onOwnerAuthenticated() {
+      if (hasLoadedForSession) return;
+      hasLoadedForSession = true;
+      await loadInitialData();
+    },
+    onOwnerSignedOut() {
+      hasLoadedForSession = false;
+      appState.cars = [];
+      appState.tasks = [];
+      appState.logs = [];
+      appState.updatedAt = null;
+      renderAll();
+    }
+  };
+
   document.addEventListener('DOMContentLoaded', () => {
+    consumeUrlSyncHash();
     initDialogEnhancements();
     UserInvalidFallback.init(document);
     wireEventListeners();
     initPwaStorageAndServiceWorker();
-    loadInitialData();
   });
 })();
