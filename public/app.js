@@ -907,7 +907,6 @@
               aria-label="Current odometer mileage"
             >
             <span class="note-odometer-unit">mi</span>
-            <button type="submit" class="btn btn-sm btn-secondary note-odo-btn">Update</button>
           </form>
           <div class="note-status-summary">
             <span>${carTasks.length} items</span>
@@ -918,9 +917,11 @@
     `;
 
     document.getElementById('btn-edit-active-car').addEventListener('click', () => openCarDialog(car));
-    document.getElementById('quick-odometer-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const newMileage = Math.max(0, Math.round(Number(document.getElementById('quick-odometer-input').value) || 0));
+    const saveQuickOdometer = async () => {
+      const inputEl = document.getElementById('quick-odometer-input');
+      if (!inputEl) return;
+      const newMileage = Math.max(0, Math.round(Number(inputEl.value) || 0));
+      if (newMileage === Number(car.currentMileage || 0)) return;
       if (appState.apiAvailable) {
         await apiRequest(`/api/cars/${encodeURIComponent(car.id)}/mileage`, 'PATCH', {
           currentMileage: newMileage
@@ -930,7 +931,12 @@
         saveLocalState();
         renderAll();
       }
+    };
+    document.getElementById('quick-odometer-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await saveQuickOdometer();
     });
+    document.getElementById('quick-odometer-input').addEventListener('change', saveQuickOdometer);
   }
 
   function renderTasksGrid() {
@@ -1743,14 +1749,12 @@
 
     // Header & section buttons
     document.getElementById('btn-add-car').addEventListener('click', () => openCarDialog());
-    document.getElementById('btn-sidebar-add-car').addEventListener('click', () => openCarDialog());
     document.getElementById('btn-add-task').addEventListener('click', () => openTaskDialog());
     document.getElementById('btn-section-add-task').addEventListener('click', () => openTaskDialog());
     const sectionAddPartBtn = document.getElementById('btn-section-add-part');
     if (sectionAddPartBtn) {
       sectionAddPartBtn.addEventListener('click', () => openPartDialog());
     }
-    document.getElementById('btn-log-service').addEventListener('click', () => openCompleteDialog());
     document.getElementById('btn-section-log-service').addEventListener('click', () => openCompleteDialog());
 
     const cloudSyncBtn = document.getElementById('btn-cloud-sync');
