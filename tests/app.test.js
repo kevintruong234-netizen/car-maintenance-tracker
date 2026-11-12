@@ -212,7 +212,9 @@ test('PWA assets (manifest.webmanifest, sw.js, icon.svg) and Import JSON UI are 
   assert.ok(indexHtml.includes('apple-mobile-web-app-capable'));
   assert.ok(indexHtml.includes('id="btn-import-json"'));
   assert.ok(indexHtml.includes('id="sync-dialog"'));
-  assert.ok(indexHtml.includes('id="sync-token-input"'));
+  assert.ok(indexHtml.includes('id="sync-account-email"'));
+  assert.ok(indexHtml.includes('id="btn-sync-refresh"'));
+  assert.ok(!indexHtml.includes('id="sync-token-input"'), 'GitHub PAT input should be removed');
   assert.ok(indexHtml.includes('id="part-dialog"'));
   assert.ok(indexHtml.includes('id="parts-section"'));
   assert.ok(indexHtml.includes('id="auth-gate"'));
@@ -220,11 +222,14 @@ test('PWA assets (manifest.webmanifest, sw.js, icon.svg) and Import JSON UI are 
   assert.ok(indexHtml.includes('data-auth-protected hidden inert'));
 
   const appJs = fs.readFileSync(path.join(publicDir, 'app.js'), 'utf8');
-  assert.ok(appJs.includes('discoverOrCreateBackupGist'));
-  assert.ok(appJs.includes('pullFromGitHubGist'));
-  assert.ok(appJs.includes('pushToGitHubGist'));
+  assert.ok(appJs.includes('GarageLogCloud'));
+  assert.ok(appJs.includes('initializeAndSubscribeGarage'));
   assert.ok(appJs.includes('openPartDialog'));
   assert.ok(appJs.includes('renderPartsSection'));
+
+  assert.ok(fs.existsSync(path.join(publicDir, 'firebase-db.js')));
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'firestore.rules')));
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'firestore.indexes.json')));
 
   const firebaseAuthJs = fs.readFileSync(path.join(publicDir, 'firebase-auth.js'), 'utf8');
   assert.ok(firebaseAuthJs.includes('ALLOWED_OWNER_EMAIL = "kevintruong234@gmail.com"'));

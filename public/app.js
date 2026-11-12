@@ -21,8 +21,12 @@
     historyCategory: 'all',
     historyPhotoFilter: 'all',
     stagedPhotos: [],
-    apiAvailable: false
+    apiAvailable: false,
+    cloudAvailable: false
   };
+
+  let currentOwnerUser = null;
+  let lastCloudSyncedAt = null;
 
   /* =========================================================================
      Modern Web Guidance Fallbacks (`light-dismiss-a-dialog` & `validate-input-after-interaction`)
@@ -242,62 +246,33 @@
     });
   }
 
-  const SYNC_CONFIG_KEY = 'garagelog_github_sync_v1';
-  const GIST_FILENAME = 'garagelog-cloud-sync.json';
-  let cloudPushTimer = null;
+  /* =========================================================================
+     Google Account Cloud Firestore Sync & Local Persistence Helpers
+     ========================================================================= */
   let isInitialLoading = true;
 
-  function getSyncConfig() {
+  function formatSyncTimeLabel(isoStr) {
+    if (!isoStr) return 'Just now';
     try {
-      const raw = localStorage.getItem(SYNC_CONFIG_KEY);
-      if (!raw) return { token: '', gistId: '', lastSyncedAt: null };
-      const parsed = JSON.parse(raw);
-      return {
-        token: String(parsed.token || '').trim(),
-        gistId: String(parsed.gistId || '').trim(),
-        lastSyncedAt: parsed.lastSyncedAt || null
-      };
+      return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
-      return { token: '', gistId: '', lastSyncedAt: null };
+      return 'Just now';
     }
   }
 
-  function saveSyncConfig(partial) {
-    const next = { ...getSyncConfig(), ...partial };
-    try {
-      localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(next));
-    } catch {
-      // ignore storage quota errors
+  function updateSyncDialogDetails() {
+    const emailEl = document.getElementById('sync-account-email');
+    if (emailEl) {
+      emailEl.textContent = currentOwnerUser?.email || 'Not signed in';
     }
-    return next;
-  }
-
-  function clearSyncConfig() {
-    try {
-      localStorage.removeItem(SYNC_CONFIG_KEY);
-    } catch {
-      // ignore
+    const countsEl = document.getElementById('sync-data-counts');
+    if (countsEl) {
+      countsEl.textContent = `${appState.cars.length} vehicle${appState.cars.length === 1 ? '' : 's'} • ${appState.tasks.length} task${appState.tasks.length === 1 ? '' : 's'} • ${appState.logs.length} log${appState.logs.length === 1 ? '' : 's'}`;
     }
-    updateSyncStatusUi('disconnected', 'Disconnected from GitHub Cloud Sync. Data remains saved locally on this device.');
-  }
-
-  function consumeUrlSyncHash() {
-    if (!window.location.hash || !window.location.hash.includes('syncToken=')) {
-      return false;
+    const lastSyncedEl = document.getElementById('sync-last-synced');
+    if (lastSyncedEl) {
+      lastSyncedEl.textContent = lastCloudSyncedAt ? formatSyncTimeLabel(lastCloudSyncedAt) : 'Waiting for sync…';
     }
-    try {
-      const params = new URLSearchParams(window.location.hash.slice(1));
-      const token = (params.get('syncToken') || '').trim();
-      const gistId = (params.get('gistId') || '').trim();
-      if (token) {
-        saveSyncConfig({ token, gistId: gistId || getSyncConfig().gistId });
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        return true;
-      }
-    } catch {
-      // ignore malformed hash
-    }
-    return false;
   }
 
   function updateSyncStatusUi(status, bannerMessage) {
@@ -319,20 +294,20 @@
     if (headerLabel) {
       headerLabel.textContent =
         status === 'connected'
-          ? 'Cloud Synced'
+          ? 'Google Synced'
           : status === 'syncing'
             ? 'Syncing…'
             : status === 'error'
               ? 'Sync Error'
-              : 'Cloud Sync';
+              : 'Google Sync';
     }
     if (menuLabel) {
       menuLabel.textContent =
         status === 'connected'
-          ? 'Cloud Sync (Connected)'
+          ? 'Google Account Sync (Connected)'
           : status === 'syncing'
-            ? 'Cloud Sync (Syncing…)'
-            : 'Private GitHub Cloud Sync';
+            ? 'Google Account Sync (Syncing…)'
+            : 'Google Account Sync';
     }
 
     const banner = document.getElementById('sync-status-banner');
@@ -342,195 +317,11 @@
       if (status === 'error') banner.classList.add('error');
       banner.textContent = bannerMessage;
     }
+
+    updateSyncDialogDetails();
   }
 
-  async function githubApiFetch(path, token, options = {}) {
-    const res = await fetch(`https://api.github.com${path}`, {
-      ...options,
-      cache: 'no-store',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...(options.headers || {})
-      }
-    });
-    if (!res.ok) {
-      throw new Error(`GitHub API HTTP ${res.status}`);
-    }
-    return res.json();
-  }
-
-  async function discoverOrCreateBackupGist(token, preferredGistId) {
-    if (preferredGistId) {
-      try {
-        const gist = await githubApiFetch(`/gists/${encodeURIComponent(preferredGistId)}`, token);
-        if (gist && gist.id) return gist;
-      } catch {
-        // Fallback to discovery if Gist ID was not found
-      }
-    }
-
-    const list = await githubApiFetch('/gists?per_page=100', token);
-    const match = Array.isArray(list)
-      ? list.find((g) => g && g.files && g.files[GIST_FILENAME])
-      : null;
-
-    if (match && match.id) {
-      return githubApiFetch(`/gists/${encodeURIComponent(match.id)}`, token);
-    }
-
-    const initialPayload = JSON.stringify(
-      {
-        updatedAt: new Date().toISOString(),
-        cars: appState.cars,
-        tasks: appState.tasks,
-        logs: appState.logs
-      },
-      null,
-      2
-    );
-
-    return githubApiFetch('/gists', token, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        description: 'GarageLog Private Cloud Backup (Multi-Vehicle Maintenance Tracker)',
-        public: false,
-        files: {
-          [GIST_FILENAME]: { content: initialPayload }
-        }
-      })
-    });
-  }
-
-  async function pullFromGitHubGist({ force = false } = {}) {
-    const cfg = getSyncConfig();
-    if (!cfg.token) return false;
-
-    updateSyncStatusUi('syncing', 'Connecting to GitHub and syncing your private garage backup…');
-    try {
-      const gist = await discoverOrCreateBackupGist(cfg.token, cfg.gistId);
-      const fileObj = gist.files && gist.files[GIST_FILENAME];
-      const nowIso = new Date().toISOString();
-      saveSyncConfig({ gistId: gist.id, lastSyncedAt: nowIso });
-
-      const gistInput = document.getElementById('sync-gist-id-input');
-      if (gistInput) gistInput.value = gist.id;
-
-      if (fileObj && fileObj.content) {
-        const parsed = JSON.parse(fileObj.content);
-        if (parsed && Array.isArray(parsed.cars)) {
-          const remoteUpdatedAt = parsed.updatedAt || null;
-          const localUpdatedAt = appState.updatedAt || null;
-
-          // If not forced and local state has newer edits/deletions than the Gist, push local to Gist instead of overwriting
-          if (!force && localUpdatedAt && (!remoteUpdatedAt || localUpdatedAt > remoteUpdatedAt)) {
-            return await pushToGitHubGist();
-          }
-
-          applyStatePayload(parsed, { skipCloudPush: true, preserveTimestamp: true });
-        }
-      }
-
-      const timeLabel = new Date(nowIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      updateSyncStatusUi(
-        'connected',
-        `Connected to Private GitHub Gist (${gist.id.slice(0, 8)}…) • Last synced at ${timeLabel}`
-      );
-      return true;
-    } catch (err) {
-      updateSyncStatusUi(
-        'error',
-        `GitHub Cloud Sync failed (${err.message || 'Check token & gist permissions'}). Local data is still safe.`
-      );
-      return false;
-    }
-  }
-
-  async function pushToGitHubGist() {
-    const cfg = getSyncConfig();
-    if (!cfg.token) return false;
-
-    if (cloudPushTimer) {
-      clearTimeout(cloudPushTimer);
-      cloudPushTimer = null;
-    }
-
-    updateSyncStatusUi('syncing', 'Saving changes to your Private GitHub Gist…');
-    try {
-      let targetGistId = cfg.gistId;
-      if (!targetGistId) {
-        const gist = await discoverOrCreateBackupGist(cfg.token, '');
-        targetGistId = gist.id;
-      }
-
-      const nowIso = new Date().toISOString();
-      appState.updatedAt = nowIso;
-      const content = JSON.stringify(
-        {
-          updatedAt: nowIso,
-          cars: appState.cars,
-          tasks: appState.tasks,
-          logs: appState.logs
-        },
-        null,
-        2
-      );
-
-      const patchBody = JSON.stringify({
-        description: 'GarageLog Private Cloud Backup (Multi-Vehicle Maintenance Tracker)',
-        files: {
-          [GIST_FILENAME]: { content }
-        }
-      });
-
-      try {
-        await githubApiFetch(`/gists/${encodeURIComponent(targetGistId)}`, cfg.token, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: patchBody
-        });
-      } catch {
-        const discovered = await discoverOrCreateBackupGist(cfg.token, '');
-        targetGistId = discovered.id;
-        await githubApiFetch(`/gists/${encodeURIComponent(targetGistId)}`, cfg.token, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: patchBody
-        });
-      }
-
-      saveLocalState({ skipCloudPush: true, preserveTimestamp: true });
-      saveSyncConfig({ gistId: targetGistId, lastSyncedAt: nowIso });
-      const gistInput = document.getElementById('sync-gist-id-input');
-      if (gistInput) gistInput.value = targetGistId;
-
-      const timeLabel = new Date(nowIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      updateSyncStatusUi(
-        'connected',
-        `Auto-synced to Private GitHub Gist (${targetGistId.slice(0, 8)}…) at ${timeLabel}`
-      );
-      return true;
-    } catch (err) {
-      updateSyncStatusUi(
-        'error',
-        `Could not push to GitHub (${err.message || 'offline'}). Saved locally on device.`
-      );
-      return false;
-    }
-  }
-
-  function scheduleCloudPush() {
-    const cfg = getSyncConfig();
-    if (!cfg.token || isInitialLoading) return;
-    if (cloudPushTimer) clearTimeout(cloudPushTimer);
-    cloudPushTimer = setTimeout(() => {
-      pushToGitHubGist().catch(() => {});
-    }, 200);
-  }
-
-  function saveLocalState({ skipCloudPush = false, preserveTimestamp = false } = {}) {
+  function saveLocalState({ preserveTimestamp = false } = {}) {
     if (!preserveTimestamp && !isInitialLoading) {
       appState.updatedAt = new Date().toISOString();
     }
@@ -546,12 +337,9 @@
     } catch {
       // Quota exceeded (e.g., >5MB of photos in localStorage); IndexedDB handles large storage
     }
-    if (!skipCloudPush) {
-      scheduleCloudPush();
-    }
   }
 
-  function applyStatePayload(data, { skipCloudPush = false, preserveTimestamp = false } = {}) {
+  function applyStatePayload(data, { preserveTimestamp = false } = {}) {
     if (preserveTimestamp) {
       appState.updatedAt = data.updatedAt || null;
     }
@@ -571,71 +359,143 @@
     ) {
       appState.selectedCarId = appState.cars[0]?.id || 'all';
     }
-    saveLocalState({ skipCloudPush, preserveTimestamp });
+    saveLocalState({ preserveTimestamp });
     renderAll();
+    updateSyncDialogDetails();
   }
 
-  async function loadInitialData() {
-    const pairedFromUrl = consumeUrlSyncHash();
-    const syncCfg = getSyncConfig();
-    if (syncCfg.token) {
+  async function loadLocalBrowserState() {
+    try {
+      const idbData = await idbLoadState();
+      if (idbData && Array.isArray(idbData.cars)) {
+        return idbData;
+      }
+    } catch {
+      // ignore IndexedDB errors
+    }
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.cars)) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return null;
+  }
+
+  function isCustomizedLocalData(data) {
+    if (!data || !Array.isArray(data.cars)) return false;
+    if (data.updatedAt) return true;
+    if (data.cars.length !== 2) return true;
+    if (data.cars.some((c) => !String(c.id || '').startsWith('car-demo-'))) return true;
+    if (Array.isArray(data.tasks) && data.tasks.some((t) => !String(t.id || '').startsWith('task-demo-'))) return true;
+    if (Array.isArray(data.logs) && data.logs.some((l) => !String(l.id || '').startsWith('log-demo-'))) return true;
+    return false;
+  }
+
+  async function getFallbackMigrationState() {
+    const localData = await loadLocalBrowserState();
+    if (isCustomizedLocalData(localData)) {
+      return { state: localData, migratedFrom: 'local' };
+    }
+    return { state: createInitialSeedData(), migratedFrom: 'seed' };
+  }
+
+  async function runCloudWrite(fn) {
+    if (!appState.cloudAvailable || !currentOwnerUser || !window.GarageLogCloud) return;
+    updateSyncStatusUi('syncing', 'Saving changes to your Google account…');
+    try {
+      await fn();
+      lastCloudSyncedAt = window.GarageLogCloud.getLastSyncedAt() || new Date().toISOString();
       updateSyncStatusUi(
         'connected',
-        `Configured with Private GitHub Gist${syncCfg.gistId ? ` (${syncCfg.gistId.slice(0, 8)}…)` : ''}`
+        `Synced with ${currentOwnerUser.email} via Cloud Firestore • Last synced at ${formatSyncTimeLabel(lastCloudSyncedAt)}`
+      );
+    } catch (err) {
+      updateSyncStatusUi(
+        'error',
+        `Cloud Firestore sync failed (${err?.message || 'offline'}). Changes are saved locally.`
       );
     }
+  }
+
+  async function loadInitialData(user) {
+    currentOwnerUser = user || null;
 
     try {
       const response = await fetch('/api/state', { headers: { Accept: 'application/json' } });
       if (response.ok) {
         const data = await response.json();
         appState.apiAvailable = true;
-        applyStatePayload(data, { skipCloudPush: true, preserveTimestamp: true });
+        applyStatePayload(data, { preserveTimestamp: true });
         isInitialLoading = false;
+        updateSyncStatusUi('connected', 'Connected to local SQLite API server.');
         return;
       }
     } catch {
       appState.apiAvailable = false;
     }
 
-    // 1. Check IndexedDB first (supports large photo libraries & empty-garage deletions on iOS Safari)
-    let loadedLocal = false;
-    try {
-      const idbData = await idbLoadState();
-      if (idbData && Array.isArray(idbData.cars)) {
-        applyStatePayload(idbData, { skipCloudPush: true, preserveTimestamp: true });
-        loadedLocal = true;
-      }
-    } catch {
-      // ignore IndexedDB errors
-    }
-
-    // 2. Fallback to localStorage (and auto-migrate to IndexedDB)
-    if (!loadedLocal) {
+    // Primary cloud persistence: Google-account-scoped Cloud Firestore
+    if (user && window.GarageLogCloud) {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && Array.isArray(parsed.cars)) {
-            applyStatePayload(parsed, { skipCloudPush: true, preserveTimestamp: true });
-            loadedLocal = true;
+        await window.GarageLogCloud.initializeAndSubscribeGarage(user, {
+          getFallbackMigrationState,
+          onData(cloudState, meta) {
+            applyStatePayload(cloudState, { preserveTimestamp: true });
+            isInitialLoading = false;
+            if (meta?.lastSyncedAt) {
+              lastCloudSyncedAt = meta.lastSyncedAt;
+            }
+            if (meta?.hasPendingWrites) {
+              updateSyncStatusUi('syncing', `Syncing changes to ${user.email}…`);
+            } else if (meta?.fromCache) {
+              updateSyncStatusUi(
+                'connected',
+                `Using offline cache for ${user.email} • Changes will sync automatically when online`
+              );
+            } else {
+              lastCloudSyncedAt = lastCloudSyncedAt || new Date().toISOString();
+              updateSyncStatusUi(
+                'connected',
+                `Synced with ${user.email} via Cloud Firestore • Last synced at ${formatSyncTimeLabel(lastCloudSyncedAt)}`
+              );
+            }
+          },
+          onStatus(status, msg) {
+            updateSyncStatusUi(status, msg);
+          },
+          onError(err) {
+            updateSyncStatusUi(
+              'error',
+              `Cloud Firestore sync error (${err?.message || 'Check permissions/network'}). Using local cache.`
+            );
           }
-        }
-      } catch {
-        // ignore parse errors
+        });
+        appState.cloudAvailable = true;
+        return;
+      } catch (err) {
+        appState.cloudAvailable = false;
+        updateSyncStatusUi(
+          'error',
+          `Could not connect to Cloud Firestore (${err?.message || 'offline'}). Using local browser data.`
+        );
       }
     }
 
-    if (!loadedLocal) {
-      applyStatePayload(createInitialSeedData(), { skipCloudPush: true, preserveTimestamp: true });
+    const localData = await loadLocalBrowserState();
+    if (localData) {
+      applyStatePayload(localData, { preserveTimestamp: true });
+    } else {
+      applyStatePayload(createInitialSeedData(), { preserveTimestamp: true });
     }
 
     isInitialLoading = false;
-
-    // 3. If Private GitHub Sync is configured (or just paired via URL hash), sync with Gist
-    if (syncCfg.token || pairedFromUrl) {
-      await pullFromGitHubGist({ force: false });
-    }
   }
 
   async function apiRequest(url, method, body) {
@@ -930,6 +790,9 @@
         car.currentMileage = newMileage;
         saveLocalState();
         renderAll();
+        await runCloudWrite(() =>
+          window.GarageLogCloud.updateCarMileage(currentOwnerUser.uid, car.id, newMileage)
+        );
       }
     };
     document.getElementById('quick-odometer-form').addEventListener('submit', async (e) => {
@@ -1654,7 +1517,7 @@
         const img = new Image();
         img.onerror = () => resolve(rawUrl);
         img.onload = () => {
-          const maxDim = 960;
+          const maxDim = 900;
           let { width, height } = img;
           if (width > maxDim || height > maxDim) {
             const scale = Math.min(maxDim / width, maxDim / height);
@@ -1666,7 +1529,7 @@
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.82));
+          resolve(canvas.toDataURL('image/jpeg', 0.78));
         };
         img.src = rawUrl;
       };
@@ -1683,12 +1546,17 @@
     if (appState.apiAvailable) {
       await apiRequest(`/api/cars/${encodeURIComponent(carId)}`, 'DELETE');
     } else {
+      const taskIds = appState.tasks.filter((t) => t.carId === carId).map((t) => t.id);
+      const logIds = appState.logs.filter((l) => l.carId === carId).map((l) => l.id);
       appState.cars = appState.cars.filter((c) => c.id !== carId);
       appState.tasks = appState.tasks.filter((t) => t.carId !== carId);
       appState.logs = appState.logs.filter((l) => l.carId !== carId);
       appState.selectedCarId = 'all';
       saveLocalState();
       renderAll();
+      await runCloudWrite(() =>
+        window.GarageLogCloud.deleteCarCascade(currentOwnerUser.uid, carId, taskIds, logIds)
+      );
     }
   }
 
@@ -1699,6 +1567,9 @@
       appState.tasks = appState.tasks.filter((t) => t.id !== taskId);
       saveLocalState();
       renderAll();
+      await runCloudWrite(() =>
+        window.GarageLogCloud.deleteTask(currentOwnerUser.uid, taskId)
+      );
     }
   }
 
@@ -1712,6 +1583,9 @@
     } else {
       saveLocalState();
       renderAll();
+      await runCloudWrite(() =>
+        window.GarageLogCloud.saveCar(currentOwnerUser.uid, car)
+      );
     }
   }
 
@@ -1722,6 +1596,9 @@
       appState.logs = appState.logs.filter((l) => l.id !== logId);
       saveLocalState();
       renderAll();
+      await runCloudWrite(() =>
+        window.GarageLogCloud.deleteLog(currentOwnerUser.uid, logId)
+      );
     }
   }
 
@@ -1765,110 +1642,41 @@
     function openSyncDialog() {
       const dialog = document.getElementById('sync-dialog');
       if (!dialog) return;
-      const cfg = getSyncConfig();
-      const tokenInput = document.getElementById('sync-token-input');
-      const gistInput = document.getElementById('sync-gist-id-input');
-      if (tokenInput) {
-        tokenInput.value = cfg.token || '';
-        tokenInput.type = 'password';
-      }
-      const toggleBtn = document.getElementById('toggle-sync-token');
-      if (toggleBtn) {
-        toggleBtn.setAttribute('aria-pressed', 'false');
-        toggleBtn.textContent = 'Show';
-      }
-      if (gistInput) {
-        gistInput.value = cfg.gistId || '';
-      }
+      updateSyncDialogDetails();
       dialog.showModal();
     }
 
-    // Show / Hide token toggle per `forms` Section 8
-    const toggleTokenBtn = document.getElementById('toggle-sync-token');
-    if (toggleTokenBtn) {
-      toggleTokenBtn.addEventListener('click', () => {
-        const tokenInput = document.getElementById('sync-token-input');
-        if (!tokenInput) return;
-        const isShowing = tokenInput.type === 'text';
-        tokenInput.type = isShowing ? 'password' : 'text';
-        toggleTokenBtn.setAttribute('aria-pressed', String(!isShowing));
-        toggleTokenBtn.setAttribute('aria-label', isShowing ? 'Show token' : 'Hide token');
-        toggleTokenBtn.textContent = isShowing ? 'Show' : 'Hide';
-      });
-    }
-
-    // Save & Sync Form Submit
-    const syncForm = document.getElementById('sync-form');
-    if (syncForm) {
-      syncForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!syncForm.checkValidity()) {
-          syncForm.reportValidity();
+    const syncRefreshBtn = document.getElementById('btn-sync-refresh');
+    if (syncRefreshBtn) {
+      syncRefreshBtn.addEventListener('click', async () => {
+        if (appState.apiAvailable) {
+          const response = await fetch('/api/state', { headers: { Accept: 'application/json' } });
+          if (response.ok) {
+            const data = await response.json();
+            applyStatePayload(data, { preserveTimestamp: true });
+            updateSyncStatusUi('connected', 'Refreshed from local SQLite API server.');
+          }
           return;
         }
-        const token = document.getElementById('sync-token-input').value.trim();
-        const gistId = document.getElementById('sync-gist-id-input').value.trim();
-        saveSyncConfig({ token, gistId });
-        if (appState.updatedAt) {
-          await pushToGitHubGist();
-        } else {
-          await pullFromGitHubGist({ force: false });
-        }
-      });
-    }
-
-    // Pull & Push quick action buttons inside Cloud Sync modal
-    const pullBtn = document.getElementById('btn-sync-pull');
-    if (pullBtn) {
-      pullBtn.addEventListener('click', async () => {
-        const token = document.getElementById('sync-token-input').value.trim();
-        const gistId = document.getElementById('sync-gist-id-input').value.trim();
-        if (token) saveSyncConfig({ token, gistId });
-        await pullFromGitHubGist({ force: true });
-      });
-    }
-
-    const pushBtn = document.getElementById('btn-sync-push');
-    if (pushBtn) {
-      pushBtn.addEventListener('click', async () => {
-        const token = document.getElementById('sync-token-input').value.trim();
-        const gistId = document.getElementById('sync-gist-id-input').value.trim();
-        if (token) saveSyncConfig({ token, gistId });
-        await pushToGitHubGist();
-      });
-    }
-
-    const copySetupLinkBtn = document.getElementById('btn-copy-setup-link');
-    if (copySetupLinkBtn) {
-      copySetupLinkBtn.addEventListener('click', async () => {
-        const token = document.getElementById('sync-token-input').value.trim() || getSyncConfig().token;
-        const gistId = document.getElementById('sync-gist-id-input').value.trim() || getSyncConfig().gistId;
-        if (!token) {
-          updateSyncStatusUi('error', 'Enter your GitHub Token first before copying a New-Phone Setup Link.');
-          return;
-        }
-        const base = window.location.origin + window.location.pathname;
-        const hashParams = new URLSearchParams({ syncToken: token });
-        if (gistId) hashParams.set('gistId', gistId);
-        const setupUrl = `${base}#${hashParams.toString()}`;
+        if (!currentOwnerUser || !window.GarageLogCloud) return;
+        updateSyncStatusUi('syncing', `Refreshing garage data from ${currentOwnerUser.email}…`);
         try {
-          await navigator.clipboard.writeText(setupUrl);
+          const fresh = await window.GarageLogCloud.refreshFromServer(
+            currentOwnerUser.uid,
+            currentOwnerUser.email
+          );
+          applyStatePayload(fresh, { preserveTimestamp: true });
+          lastCloudSyncedAt = fresh.lastSyncedAt || new Date().toISOString();
           updateSyncStatusUi(
             'connected',
-            'Copied New-Phone Setup Link! Open that link on your iPhone to connect Private GitHub Sync in 1 tap.'
+            `Synced with ${currentOwnerUser.email} via Cloud Firestore • Last synced at ${formatSyncTimeLabel(lastCloudSyncedAt)}`
           );
-        } catch {
-          updateSyncStatusUi('connected', `Setup Link: ${setupUrl}`);
+        } catch (err) {
+          updateSyncStatusUi(
+            'error',
+            `Could not refresh from Cloud Firestore (${err?.message || 'offline'}).`
+          );
         }
-      });
-    }
-
-    const disconnectBtn = document.getElementById('btn-sync-disconnect');
-    if (disconnectBtn) {
-      disconnectBtn.addEventListener('click', () => {
-        clearSyncConfig();
-        document.getElementById('sync-token-input').value = '';
-        document.getElementById('sync-gist-id-input').value = '';
       });
     }
 
@@ -1908,6 +1716,14 @@
               await apiRequest('/api/state', 'PUT', parsed);
             } else {
               applyStatePayload(parsed);
+              await runCloudWrite(() =>
+                window.GarageLogCloud.replaceFullState(
+                  currentOwnerUser.uid,
+                  currentOwnerUser.email,
+                  parsed,
+                  { migratedFrom: 'import' }
+                )
+              );
             }
           }
         } catch {
@@ -1923,7 +1739,16 @@
       if (appState.apiAvailable) {
         await apiRequest('/api/reset', 'POST');
       } else {
-        applyStatePayload(createInitialSeedData());
+        const seed = createInitialSeedData();
+        applyStatePayload(seed);
+        await runCloudWrite(() =>
+          window.GarageLogCloud.replaceFullState(
+            currentOwnerUser.uid,
+            currentOwnerUser.email,
+            seed,
+            { migratedFrom: 'seed' }
+          )
+        );
       }
     });
 
@@ -2092,14 +1917,20 @@
       } else {
         const id = payload.id || 'car-' + Math.random().toString(36).slice(2, 10);
         const existingIdx = appState.cars.findIndex((c) => c.id === id);
+        let savedCar;
         if (existingIdx >= 0) {
-          appState.cars[existingIdx] = { ...appState.cars[existingIdx], ...payload, id };
+          savedCar = { ...appState.cars[existingIdx], ...payload, id };
+          appState.cars[existingIdx] = savedCar;
         } else {
-          appState.cars.push({ ...payload, id });
+          savedCar = { ...payload, id, parts: [] };
+          appState.cars.push(savedCar);
         }
         appState.selectedCarId = id;
         saveLocalState();
         renderAll();
+        await runCloudWrite(() =>
+          window.GarageLogCloud.saveCar(currentOwnerUser.uid, savedCar)
+        );
       }
 
       document.getElementById('car-dialog').close();
@@ -2134,25 +1965,31 @@
       } else {
         const id = payload.id || 'task-' + Math.random().toString(36).slice(2, 10);
         const existingIdx = appState.tasks.findIndex((t) => t.id === id);
+        let savedTask;
         if (existingIdx >= 0) {
-          appState.tasks[existingIdx] = {
+          savedTask = {
             ...appState.tasks[existingIdx],
             ...payload,
             baselineDate: payload.lastCompletedDate,
             baselineMileage: payload.lastCompletedMileage,
             id
           };
+          appState.tasks[existingIdx] = savedTask;
         } else {
-          appState.tasks.push({
+          savedTask = {
             ...payload,
             id,
             baselineDate: payload.lastCompletedDate,
             baselineMileage: payload.lastCompletedMileage,
             completionCount: 0
-          });
+          };
+          appState.tasks.push(savedTask);
         }
         saveLocalState();
         renderAll();
+        await runCloudWrite(() =>
+          window.GarageLogCloud.saveTask(currentOwnerUser.uid, savedTask)
+        );
       }
 
       document.getElementById('task-dialog').close();
@@ -2181,6 +2018,7 @@
           notes: document.getElementById('part-notes').value.trim()
         };
 
+        let movedFromCar = null;
         // If user moved an existing part from one vehicle to another during edit
         if (originCarId && originCarId !== targetCarId) {
           const originCar = getCarById(originCarId);
@@ -2188,6 +2026,8 @@
             originCar.parts = originCar.parts.filter((p) => p.id !== partId);
             if (appState.apiAvailable) {
               await apiRequest('/api/cars', 'POST', originCar);
+            } else {
+              movedFromCar = originCar;
             }
           }
         }
@@ -2208,6 +2048,12 @@
           } else {
             saveLocalState();
             renderAll();
+            await runCloudWrite(async () => {
+              if (movedFromCar) {
+                await window.GarageLogCloud.saveCar(currentOwnerUser.uid, movedFromCar);
+              }
+              await window.GarageLogCloud.saveCar(currentOwnerUser.uid, targetCar);
+            });
           }
         }
 
@@ -2244,12 +2090,16 @@
       } else {
         const id = payload.id || 'log-' + Math.random().toString(36).slice(2, 10);
         const existingIdx = appState.logs.findIndex((l) => l.id === id);
+        let savedLog;
         if (existingIdx >= 0) {
-          appState.logs[existingIdx] = { ...appState.logs[existingIdx], ...payload, id };
+          savedLog = { ...appState.logs[existingIdx], ...payload, id };
+          appState.logs[existingIdx] = savedLog;
         } else {
-          appState.logs.unshift({ ...payload, id });
+          savedLog = { ...payload, id };
+          appState.logs.unshift(savedLog);
         }
 
+        let taskUpdate = null;
         if (payload.taskId) {
           const linked = appState.tasks.find((t) => t.id === payload.taskId);
           if (linked) {
@@ -2262,16 +2112,31 @@
               payload.mileage
             );
             linked.completionCount = Number(linked.completionCount || 0) + 1;
+            taskUpdate = {
+              id: linked.id,
+              lastCompletedDate: linked.lastCompletedDate,
+              lastCompletedMileage: linked.lastCompletedMileage,
+              completionCount: linked.completionCount
+            };
           }
         }
 
+        let carMileageUpdate = null;
         const car = getCarById(payload.carId);
         if (car && payload.mileage > Number(car.currentMileage || 0)) {
           car.currentMileage = payload.mileage;
+          carMileageUpdate = { id: car.id, currentMileage: car.currentMileage };
         }
 
         saveLocalState();
         renderAll();
+        await runCloudWrite(() =>
+          window.GarageLogCloud.saveLogWithSideEffects(currentOwnerUser.uid, {
+            log: savedLog,
+            taskUpdate,
+            carMileageUpdate
+          })
+        );
       }
 
       document.getElementById('complete-dialog').close();
@@ -2290,23 +2155,29 @@
   let hasLoadedForSession = false;
 
   window.GarageLogApp = {
-    async onOwnerAuthenticated() {
-      if (hasLoadedForSession) return;
+    async onOwnerAuthenticated(user) {
+      if (hasLoadedForSession && currentOwnerUser?.uid === user?.uid) return;
       hasLoadedForSession = true;
-      await loadInitialData();
+      await loadInitialData(user);
     },
     onOwnerSignedOut() {
       hasLoadedForSession = false;
+      currentOwnerUser = null;
+      appState.cloudAvailable = false;
+      lastCloudSyncedAt = null;
+      if (window.GarageLogCloud && typeof window.GarageLogCloud.unsubscribeAll === 'function') {
+        window.GarageLogCloud.unsubscribeAll();
+      }
       appState.cars = [];
       appState.tasks = [];
       appState.logs = [];
       appState.updatedAt = null;
       renderAll();
+      updateSyncStatusUi('disconnected', 'Signed out. Sign in with Google to sync your garage.');
     }
   };
 
   document.addEventListener('DOMContentLoaded', () => {
-    consumeUrlSyncHash();
     initDialogEnhancements();
     UserInvalidFallback.init(document);
     wireEventListeners();

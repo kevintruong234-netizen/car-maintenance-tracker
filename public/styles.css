@@ -1558,7 +1558,7 @@ input.user-valid-fallback {
 }
 
 /* =========================================================================
-   Private GitHub Cloud Sync UI
+   Google Account Cloud Sync UI
    ========================================================================= */
 .sync-status-dot {
   inline-size: 9px;
@@ -1621,6 +1621,43 @@ input.user-valid-fallback {
   flex-wrap: wrap;
   gap: 0.5rem;
   padding-block-start: 0.25rem;
+}
+
+.sync-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sync-details-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.sync-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.sync-detail-row dt {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.sync-detail-row dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: end;
+  word-break: break-word;
 }
 
 /* =========================================================================

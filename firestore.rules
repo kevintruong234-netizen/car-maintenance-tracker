@@ -1,0 +1,356 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Authentication & Tenancy:
+    //   - Firebase Auth (Google Sign-In only) locked exclusively to the single
+    //     verified owner account: kevintruong234@gmail.com.
+    //   - All documents are scoped under /users/{userId} where
+    //     request.auth.uid == userId.
+    //
+    // Document: /users/{userId}
+    //   Purpose: Owner profile & garage sync metadata.
+    //   Fields:
+    //     - ownerEmail: string (required, immutable, must equal 'kevintruong234@gmail.com')
+    //     - updatedAt: string (required, 1..64 chars)
+    //     - initialized: bool (required)
+    //     - schemaVersion: int (required, immutable, must equal 1)
+    //     - migratedFrom: string (optional, 0..100 chars)
+    //
+    // Collection: /users/{userId}/cars/{carId}
+    //   Purpose: Vehicle documents.
+    //   Fields:
+    //     - id: string (required, immutable, must equal carId, 1..128 chars)
+    //     - year: number (required, 1900..2100)
+    //     - make: string (required, 1..80 chars)
+    //     - model: string (required, 1..80 chars)
+    //     - currentMileage: number (required, >= 0, <= 10000000)
+    //     - nickname: string (optional, 0..80 chars)
+    //     - vin: string (optional, 0..32 chars)
+    //     - licensePlate: string (optional, 0..24 chars)
+    //     - colorAccent: string (optional, 0..32 chars)
+    //     - notes: string (optional, 0..5000 chars)
+    //     - parts: list of maps (optional, max 200 items)
+    //     - updatedAt: string (optional, 0..64 chars)
+    //
+    // Collection: /users/{userId}/tasks/{taskId}
+    //   Purpose: Recurring maintenance task schedules.
+    //   Fields:
+    //     - id: string (required, immutable, must equal taskId, 1..128 chars)
+    //     - carId: string (required, 1..128 chars)
+    //     - title: string (required, 1..140 chars)
+    //     - intervalMiles: number (required, >= 0, <= 1000000)
+    //     - intervalMonths: number (required, >= 0, <= 1200)
+    //     - category: string (optional, 0..64 chars)
+    //     - lastCompletedDate: string | null (optional, 0..64 chars if string)
+    //     - lastCompletedMileage: number | null (optional, 0..10000000 if number)
+    //     - baselineDate: string | null (optional, 0..64 chars if string)
+    //     - baselineMileage: number | null (optional, 0..10000000 if number)
+    //     - notes: string (optional, 0..5000 chars)
+    //     - completionCount: number (optional, 0..100000)
+    //     - updatedAt: string (optional, 0..64 chars)
+    //
+    // Collection: /users/{userId}/logs/{logId}
+    //   Purpose: Service history logs (may embed base64/SVG dataUrl photo attachments).
+    //   Fields:
+    //     - id: string (required, immutable, must equal logId, 1..128 chars)
+    //     - carId: string (required, 1..128 chars)
+    //     - taskTitle: string (required, 1..140 chars)
+    //     - completedDate: string (required, 1..64 chars)
+    //     - mileage: number (required, >= 0, <= 10000000)
+    //     - taskId: string | null (optional, 0..128 chars if string)
+    //     - category: string (optional, 0..64 chars)
+    //     - cost: number (optional, >= 0, <= 10000000)
+    //     - performedBy: string (optional, 0..140 chars)
+    //     - notes: string (optional, 0..5000 chars)
+    //     - photos: list of maps (optional, max 20 items)
+    //     - updatedAt: string (optional, 0..64 chars)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user owns the resource path
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Enforce single-owner Google account lock + verified email + UID match
+    function isAuthorizedOwner(userId) {
+      return isOwner(userId) &&
+             request.auth.token.email_verified == true &&
+             request.auth.token.email == 'kevintruong234@gmail.com';
+    }
+
+    // Validate required fields exist on the post-write document
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Reject unknown/extraneous fields on the post-write document
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Ensure specified fields cannot change during an update
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Validate a required string field's type and length
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field].size() >= minLen &&
+             request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate an optional string field (absent or string within length)
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validate an optional nullable string field (absent, null, or string within length)
+    function isValidNullableString(field, maxLen) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == null ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validate a required bounded number field
+    function isValidNumberRange(field, minVal, maxVal) {
+      return request.resource.data[field] is number &&
+             request.resource.data[field] >= minVal &&
+             request.resource.data[field] <= maxVal;
+    }
+
+    // Validate an optional bounded number field
+    function isValidOptionalNumberRange(field, minVal, maxVal) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is number &&
+              request.resource.data[field] >= minVal &&
+              request.resource.data[field] <= maxVal);
+    }
+
+    // Validate an optional nullable bounded number field
+    function isValidNullableNumberRange(field, minVal, maxVal) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == null ||
+             (request.resource.data[field] is number &&
+              request.resource.data[field] >= minVal &&
+              request.resource.data[field] <= maxVal);
+    }
+
+    // Validate an optional list of maps with a strict maximum length
+    function isValidOptionalMapList(field, maxSize) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is list &&
+              request.resource.data[field].size() <= maxSize &&
+              (request.resource.data[field].size() == 0 ||
+               request.resource.data[field][0] is map));
+    }
+
+    // ===============================================================
+    // Domain Validators (Called in BOTH create and update)
+    // ===============================================================
+
+    function isValidUserProfile(data) {
+      return hasOnlyAllowedFields([
+               'ownerEmail',
+               'updatedAt',
+               'initialized',
+               'migratedFrom',
+               'schemaVersion'
+             ]) &&
+             hasRequiredFields([
+               'ownerEmail',
+               'updatedAt',
+               'initialized',
+               'schemaVersion'
+             ]) &&
+             data.ownerEmail is string &&
+             data.ownerEmail == 'kevintruong234@gmail.com' &&
+             validStringLength('updatedAt', 1, 64) &&
+             data.initialized is bool &&
+             data.schemaVersion is int &&
+             data.schemaVersion == 1 &&
+             isValidOptionalString('migratedFrom', 0, 100);
+    }
+
+    function isValidCar(data, carId) {
+      return hasOnlyAllowedFields([
+               'id',
+               'year',
+               'make',
+               'model',
+               'currentMileage',
+               'nickname',
+               'vin',
+               'licensePlate',
+               'colorAccent',
+               'notes',
+               'parts',
+               'updatedAt'
+             ]) &&
+             hasRequiredFields([
+               'id',
+               'year',
+               'make',
+               'model',
+               'currentMileage'
+             ]) &&
+             validStringLength('id', 1, 128) &&
+             data.id == carId &&
+             isValidNumberRange('year', 1900, 2100) &&
+             validStringLength('make', 1, 80) &&
+             validStringLength('model', 1, 80) &&
+             isValidNumberRange('currentMileage', 0, 10000000) &&
+             isValidOptionalString('nickname', 0, 80) &&
+             isValidOptionalString('vin', 0, 32) &&
+             isValidOptionalString('licensePlate', 0, 24) &&
+             isValidOptionalString('colorAccent', 0, 32) &&
+             isValidOptionalString('notes', 0, 5000) &&
+             isValidOptionalMapList('parts', 200) &&
+             isValidOptionalString('updatedAt', 0, 64);
+    }
+
+    function isValidTask(data, taskId) {
+      return hasOnlyAllowedFields([
+               'id',
+               'carId',
+               'title',
+               'intervalMiles',
+               'intervalMonths',
+               'category',
+               'lastCompletedDate',
+               'lastCompletedMileage',
+               'baselineDate',
+               'baselineMileage',
+               'notes',
+               'completionCount',
+               'updatedAt'
+             ]) &&
+             hasRequiredFields([
+               'id',
+               'carId',
+               'title',
+               'intervalMiles',
+               'intervalMonths'
+             ]) &&
+             validStringLength('id', 1, 128) &&
+             data.id == taskId &&
+             validStringLength('carId', 1, 128) &&
+             validStringLength('title', 1, 140) &&
+             isValidNumberRange('intervalMiles', 0, 1000000) &&
+             isValidNumberRange('intervalMonths', 0, 1200) &&
+             isValidOptionalString('category', 0, 64) &&
+             isValidNullableString('lastCompletedDate', 64) &&
+             isValidNullableNumberRange('lastCompletedMileage', 0, 10000000) &&
+             isValidNullableString('baselineDate', 64) &&
+             isValidNullableNumberRange('baselineMileage', 0, 10000000) &&
+             isValidOptionalString('notes', 0, 5000) &&
+             isValidOptionalNumberRange('completionCount', 0, 100000) &&
+             isValidOptionalString('updatedAt', 0, 64);
+    }
+
+    function isValidLog(data, logId) {
+      return hasOnlyAllowedFields([
+               'id',
+               'carId',
+               'taskTitle',
+               'completedDate',
+               'mileage',
+               'taskId',
+               'category',
+               'cost',
+               'performedBy',
+               'notes',
+               'photos',
+               'updatedAt'
+             ]) &&
+             hasRequiredFields([
+               'id',
+               'carId',
+               'taskTitle',
+               'completedDate',
+               'mileage'
+             ]) &&
+             validStringLength('id', 1, 128) &&
+             data.id == logId &&
+             validStringLength('carId', 1, 128) &&
+             validStringLength('taskTitle', 1, 140) &&
+             validStringLength('completedDate', 1, 64) &&
+             isValidNumberRange('mileage', 0, 10000000) &&
+             isValidNullableString('taskId', 128) &&
+             isValidOptionalString('category', 0, 64) &&
+             isValidOptionalNumberRange('cost', 0, 10000000) &&
+             isValidOptionalString('performedBy', 0, 140) &&
+             isValidOptionalString('notes', 0, 5000) &&
+             isValidOptionalMapList('photos', 20) &&
+             isValidOptionalString('updatedAt', 0, 64);
+    }
+
+    // ===============================================================
+    // Collection & Document Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthorizedOwner(userId);
+      allow create: if isAuthorizedOwner(userId) &&
+                       isValidUserProfile(request.resource.data);
+      allow update: if isAuthorizedOwner(userId) &&
+                       isValidUserProfile(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['ownerEmail', 'schemaVersion']);
+      allow delete: if isAuthorizedOwner(userId);
+
+      match /cars/{carId} {
+        allow read: if isAuthorizedOwner(userId);
+        allow create: if isAuthorizedOwner(userId) &&
+                         isValidCar(request.resource.data, carId);
+        allow update: if isAuthorizedOwner(userId) &&
+                         isValidCar(request.resource.data, carId) &&
+                         areImmutableFieldsUnchanged(['id']);
+        allow delete: if isAuthorizedOwner(userId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isAuthorizedOwner(userId);
+        allow create: if isAuthorizedOwner(userId) &&
+                         isValidTask(request.resource.data, taskId);
+        allow update: if isAuthorizedOwner(userId) &&
+                         isValidTask(request.resource.data, taskId) &&
+                         areImmutableFieldsUnchanged(['id']);
+        allow delete: if isAuthorizedOwner(userId);
+      }
+
+      match /logs/{logId} {
+        allow read: if isAuthorizedOwner(userId);
+        allow create: if isAuthorizedOwner(userId) &&
+                         isValidLog(request.resource.data, logId);
+        allow update: if isAuthorizedOwner(userId) &&
+                         isValidLog(request.resource.data, logId) &&
+                         areImmutableFieldsUnchanged(['id']);
+        allow delete: if isAuthorizedOwner(userId);
+      }
+    }
+
+    // Default deny for all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

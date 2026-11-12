@@ -16,7 +16,8 @@
     {
       "imports": {
         "firebase/app": "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js",
-        "firebase/auth": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js"
+        "firebase/auth": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js"
       }
     }
   </script>
@@ -79,9 +80,9 @@
           <button type="button" id="btn-add-task" class="btn btn-sm btn-secondary">
             <span aria-hidden="true">↻</span> Add Task
           </button>
-          <button type="button" id="btn-cloud-sync" class="btn btn-sm btn-secondary" aria-label="Configure Private GitHub Cloud Sync">
+          <button type="button" id="btn-cloud-sync" class="btn btn-sm btn-secondary" aria-label="Google Account Cloud Sync Status">
             <span id="sync-header-dot" class="sync-status-dot" aria-hidden="true"></span>
-            <span id="sync-header-label">Cloud Sync</span>
+            <span id="sync-header-label">Google Sync</span>
           </button>
           <button type="button" id="btn-export-json" class="btn btn-sm btn-ghost" aria-label="Export backup JSON">
             Export JSON
@@ -121,7 +122,7 @@
       <div class="popover-menu-list">
         <button type="button" class="popover-menu-item" data-mobile-action="cloud-sync">
           <span id="sync-menu-dot" class="sync-status-dot" aria-hidden="true"></span>
-          <span id="sync-menu-label">Private GitHub Cloud Sync</span>
+          <span id="sync-menu-label">Google Account Sync</span>
         </button>
         <hr class="popover-divider">
         <button type="button" class="popover-menu-item" data-mobile-action="add-car">
@@ -291,7 +292,7 @@
   </main>
 
   <footer class="app-footer">
-    <p>GarageLog Vehicle Maintenance Tracker • Data persisted locally &amp; synced with SQLite API when running server</p>
+    <p>GarageLog Vehicle Maintenance Tracker • Synced to your Google account via Cloud Firestore with offline cache</p>
   </footer>
   </div>
 
@@ -790,87 +791,45 @@
   </dialog>
 
   <!-- =====================================================================
-       MODAL 5: Private GitHub Cloud Sync (<dialog closedby="any">)
+       MODAL 5: Google Account Cloud Sync (<dialog closedby="any">)
        ===================================================================== -->
   <dialog id="sync-dialog" closedby="any" aria-labelledby="sync-dialog-title">
     <div class="dialog-header">
-      <h2 id="sync-dialog-title">Private GitHub Cloud Sync</h2>
+      <h2 id="sync-dialog-title">Google Account Cloud Sync</h2>
       <button type="button" class="icon-close-btn" data-close-dialog="sync-dialog" aria-label="Close cloud sync dialog">✕</button>
     </div>
 
-    <form id="sync-form" method="POST" action="/api/sync" novalidate>
+    <div class="sync-dialog-body">
       <div id="sync-status-banner" class="sync-status-banner" role="status" aria-live="polite">
-        Not connected to GitHub Cloud Sync yet. Enter your GitHub Personal Access Token below to enable automatic private backup across phones.
+        Your garage data automatically syncs across devices whenever you sign in with your Google account.
       </div>
 
-      <div class="field">
-        <label for="sync-token-input">GitHub Personal Access Token (with Gist scope) *</label>
-        <span id="sync-token-hint" class="hint">Stored privately on your phone only. Never sent anywhere except api.github.com.</span>
-        <div class="password-input-row">
-          <input
-            type="password"
-            id="sync-token-input"
-            name="token"
-            required
-            minlength="10"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            placeholder="ghp_... or gho_..."
-            aria-describedby="sync-token-hint"
-          >
-          <button
-            type="button"
-            id="toggle-sync-token"
-            class="btn btn-sm btn-secondary"
-            aria-pressed="false"
-            aria-label="Show token"
-            aria-describedby="toggle-token-warning"
-          >
-            Show
-          </button>
-          <span id="toggle-token-warning" class="visually-hidden">Warning: this will display your token on the screen.</span>
+      <dl class="sync-details-list">
+        <div class="sync-detail-row">
+          <dt>Google Account</dt>
+          <dd id="sync-account-email">—</dd>
         </div>
-        <div class="error-msg"><span aria-hidden="true">⚠</span> Please enter a valid GitHub Personal Access Token.</div>
-      </div>
-
-      <div class="field">
-        <label for="sync-gist-id-input">Secret Gist ID (Optional)</label>
-        <span id="sync-gist-hint" class="hint">Leave blank on a new phone to automatically find your existing <code>garagelog-cloud-sync.json</code> secret Gist.</span>
-        <input
-          type="text"
-          id="sync-gist-id-input"
-          name="gistId"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
-          placeholder="Auto-detected from your GitHub account"
-          aria-describedby="sync-gist-hint"
-        >
-      </div>
-
-      <div class="sync-quick-actions">
-        <button type="button" id="btn-sync-pull" class="btn btn-sm btn-secondary">
-          ↓ Pull from GitHub
-        </button>
-        <button type="button" id="btn-sync-push" class="btn btn-sm btn-secondary">
-          ↑ Push to GitHub
-        </button>
-        <button type="button" id="btn-copy-setup-link" class="btn btn-sm btn-secondary">
-          🔗 Copy New-Phone Setup Link
-        </button>
-        <button type="button" id="btn-sync-disconnect" class="btn btn-sm btn-danger">
-          Disconnect
-        </button>
-      </div>
+        <div class="sync-detail-row">
+          <dt>Cloud Database</dt>
+          <dd>Cloud Firestore (garagelog-kt-234)</dd>
+        </div>
+        <div class="sync-detail-row">
+          <dt>Synced Garage</dt>
+          <dd id="sync-data-counts">0 vehicles • 0 tasks • 0 logs</dd>
+        </div>
+        <div class="sync-detail-row">
+          <dt>Last Synced</dt>
+          <dd id="sync-last-synced">Just now</dd>
+        </div>
+      </dl>
 
       <div class="dialog-actions">
-        <button type="button" class="btn btn-ghost" data-close-dialog="sync-dialog">Close</button>
-        <button type="submit" id="sync-submit-btn" class="btn btn-primary">Save &amp; Sync Now</button>
+        <button type="button" id="btn-sync-refresh" class="btn btn-secondary">
+          ↻ Sync Now
+        </button>
+        <button type="button" class="btn btn-primary" data-close-dialog="sync-dialog" autofocus>Close</button>
       </div>
-    </form>
+    </div>
   </dialog>
 
   <!-- =====================================================================

@@ -7,6 +7,7 @@ import {
   signOut
 } from "firebase/auth";
 import { auth } from "./firebase.js";
+import "./firebase-db.js";
 
 const ALLOWED_OWNER_EMAIL = "kevintruong234@gmail.com";
 
@@ -104,6 +105,9 @@ function initFirebaseAuthGate() {
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
+      if (window.GarageLogCloud && typeof window.GarageLogCloud.unsubscribeAll === "function") {
+        window.GarageLogCloud.unsubscribeAll();
+      }
       setAppLocked(true, null);
       if (window.GarageLogApp && typeof window.GarageLogApp.onOwnerSignedOut === "function") {
         window.GarageLogApp.onOwnerSignedOut();
